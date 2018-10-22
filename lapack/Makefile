@@ -45,7 +45,7 @@ OBJS= dsyev.o dsygv.o dlansy.o dsytrd.o dorgtr.o dsteqr.o \
 	dlatrs.o drscl.o dlantr.o dgecon.o dgeequ.o dlaqge.o dgesvx.o \
 	chla_transtype.o dla_wwaddw.o dla_geamv.o dla_lin_berr.o \
 	ilatrans.o dla_gercond.o ilaprec.o dla_gerfsx_extended.o\
-	dla_rpvgrw.o dgerfsx.o dlascl2.o dgeequb.o
+	dla_rpvgrw.o dgerfsx.o dlascl2.o dgeequb.o dpotri.o
 
 install: $(LIBDIR)/liblapack.a
 

@@ -145,6 +145,10 @@ subroutine sander()
 
   use music_module, only: read_music_nml, print_music_settings
 
+#ifdef MPI
+  use string_method, only : string_define
+#endif
+
   implicit none
 
   logical belly, erstop
@@ -172,7 +176,7 @@ subroutine sander()
 #  ifdef MPI_BUFFER_SIZE
   integer*4 mpibuf(mpi_buffer_size)
 #  endif
-!  REMD: loop is the current exchange. runmd is called numexchg times. 
+!  REMD: loop is the current exchange. runmd is called numexchg times.
   integer loop
 
   _REAL_ emtmd
@@ -222,6 +226,10 @@ subroutine sander()
   logical :: do_list_update=.false.
 #endif
   _REAL_ :: box_center(3)
+
+#ifdef MPI
+  logical :: string_defined
+#endif
 
 #ifdef MPI_DEBUGGER
   integer, volatile :: release_debug
@@ -463,7 +471,7 @@ subroutine sander()
       end if
 #endif
 
-#if defined(RISMSANDER) 
+#if defined(RISMSANDER)
       call rism_setparam(mdin, commsander, natom, ntypes, x(L15:L15+natom-1), &
                          x(LMASS:LMASS+natom-1), cn1, cn2, &
                          ix(i04:i04+ntypes**2-1), ix(i06:i06+natom-1))
@@ -537,7 +545,7 @@ subroutine sander()
         call mexit(6, 1)
       end if
 
-      ! Initialise the "atomic numbers" and "quantum forces" vectors        
+      ! Initialise the "atomic numbers" and "quantum forces" vectors
       pupparticles = 0
       iresPup = 1
       pupres(1) = 1
@@ -599,7 +607,7 @@ subroutine sander()
         else
 
           ! Set the random seed different for different replicas,
-          ! but keep same seed for CPUs in the same replica since 
+          ! but keep same seed for CPUs in the same replica since
           ! we want data from diff numbers of cpus to match.
           !
           ! The variable nodeid is declared through md.h
@@ -692,7 +700,7 @@ subroutine sander()
           call iwrap2(abfqmmm_param%n_user_qm, abfqmmm_param%user_qm, &
                       x(lcrd), box_center)
         end if
- 
+
         ! If we are reading NMR restraints/weight changes, read them now:
         if (nmropt >= 1) then
           call nmrcal(x(lcrd), x(lforce), ih(m04), ih(m02), ix(i02), &
@@ -830,12 +838,12 @@ subroutine sander()
         ! Remove CHARMM energy terms from QM region
         call charmm_filter_out_qm_atoms()
 
-        ! Now we should work out the type of each quantum atom present. 
-        ! This is used for our arrays of pre-computed parameters. It is 
-        ! essentially a re-basing of the atomic numbers and is done to save 
-        ! memory. Note: qm_assign_atom_types will allocate the qm_atom_type 
-        ! array for us. Only the master calls this routine. All other 
-        ! threads get this allocated and broadcast to them by the mpi setup 
+        ! Now we should work out the type of each quantum atom present.
+        ! This is used for our arrays of pre-computed parameters. It is
+        ! essentially a re-basing of the atomic numbers and is done to save
+        ! memory. Note: qm_assign_atom_types will allocate the qm_atom_type
+        ! array for us. Only the master calls this routine. All other
+        ! threads get this allocated and broadcast to them by the mpi setup
         ! routine.
         call qm_assign_atom_types
 
@@ -1004,7 +1012,7 @@ subroutine sander()
     if (abfqmmm_param%qmstep == 1 .and. abfqmmm_param%system == 1) then
       call stack_setup()
     else
-      call deallocate_stacks             
+      call deallocate_stacks
       call stack_setup()
     end if
     call mpi_bcast(plumed, 1, MPI_INTEGER, 0, commsander, ier)
@@ -1122,10 +1130,10 @@ subroutine sander()
                     ix(i02), ih(m02), x(lcrd), ntypes, clambda, nstlim)
       if (ntp > 0 .and. master) then
 
-        ! Check which molecules are perturbed in NPT runs 
+        ! Check which molecules are perturbed in NPT runs
         call sc_check_perturbed_molecules(nspm, ix(i70))
       end if
- 
+
       ! Thermodynamic Integration decomposition
       if (idecomp > 0) then
         if (sanderrank == 0) then
@@ -1142,14 +1150,14 @@ subroutine sander()
         if (numtasks > 1) then
           call mpi_bcast(nr3, 1, MPI_INTEGER, 0, commsander, ier)
           call mpi_bcast(x(lvel), nr3, MPI_DOUBLE_PRECISION, &
-                         0, commsander, ier)               
+                         0, commsander, ier)
         end if
       end if
       if (tishake .ne. 0) then
         call setnoshake_sc(ix, ntc, num_noshake, master)
       end if
     else
-      extra_atoms=0      
+      extra_atoms=0
     end if
     if (.not. master .and. igb == 0 .and. ipb == 0) then
       if (abfqmmm_param%qmstep == 1 .and. abfqmmm_param%system == 1) then
@@ -1178,15 +1186,15 @@ subroutine sander()
     nr3 = 3 * nr
     belly = (ibelly > 0)
 
-    ! Do setup for QMMM in parallel if ifqnt is on - this is essentially 
+    ! Do setup for QMMM in parallel if ifqnt is on - this is essentially
     ! everything in the QMMM namelist and a few other bits and pieces.
-    ! Note, currently only master node knows if qmmm_nml%ifqnt is 
+    ! Note, currently only master node knows if qmmm_nml%ifqnt is
     ! on so we need to broadcast this first and then make decisions
     ! based on this.
     call mpi_bcast(qmmm_nml%ifqnt, 1, mpi_logical, 0, commsander, ier)
     if (qmmm_nml%ifqnt) then
 
-      ! Broadcast all of the stuff in qmmm_nml and allocate the relevant 
+      ! Broadcast all of the stuff in qmmm_nml and allocate the relevant
       ! arrays on all processors. This will also set up information for
       ! openmp on the master processor if it is in use.
       call qmmm_mpi_setup(master, natom)
@@ -1211,12 +1219,12 @@ subroutine sander()
     ! threads, masters have called it above before initial coord read.
     if (abfqmmm_param%qmstep == 1 .and. abfqmmm_param%system == 1) then
       if (rem == 0) then
-        call amrset(ig+1) 
+        call amrset(ig+1)
       else
         if (.not. master) then
           call amrset(ig + 17*nodeid)
         end if
-      endif  
+      endif
       if (nmropt >= 1) then
 
         ! Updated 9/2007 by Matthew Seetin to enable
@@ -1342,7 +1350,7 @@ subroutine sander()
       ! BTREE is selected by default if cpu is a power of two.
       ! The number of processes is required to be a power of two for Btree
       ! Print a warning about inefficiency with cpus not being a power of 2.
-      if (numtasks > 1 .and. logtwo(numtasks) <= 0) then 
+      if (numtasks > 1 .and. logtwo(numtasks) <= 0) then
         if (abfqmmm_param%abfqmmm .ne. 1) then
           write(6, '(a,i4,a,/)') &
                 '|  WARNING: The number of processors is not a power of 2'
@@ -1393,7 +1401,7 @@ subroutine sander()
     if (abfqmmm_param%qmstep == 1 .and. abfqmmm_param%system == 1) then
       call stack_setup()
     else
-      call deallocate_stacks             
+      call deallocate_stacks
       call stack_setup()
     end if
 
@@ -1476,7 +1484,7 @@ subroutine sander()
       call qm_zero_charges(x(L15), qmmm_struct%scaled_mm_charges, .true.)
       if (qmmm_struct%nlink > 0) then
 
-        ! We need to exclude all electrostatic interactions with 
+        ! We need to exclude all electrostatic interactions with
         ! MM link pairs, both in QM-MM and MM-MM.  Do this by zeroing
         ! the MM link pair charges in the main charge array.  These
         ! charges are stored in qmmm_struct%mm_link_pair_resp_charges
@@ -1523,6 +1531,11 @@ subroutine sander()
 
         ! Dynamics:
         call timer_start(TIME_RUNMD)
+
+#ifdef MPI
+        inquire(file = "STRING", exist=string_defined)
+        if (string_defined) call string_define(x(lcrd:lcrd+natom*3-1))
+#endif
 
         ! Set up Accelerated Molecular Dynamics 
         if (iamd .gt. 0) then

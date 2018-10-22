@@ -127,8 +127,12 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   use les_data, only: temp0les
   use music_module, only : music_force
 
+#ifdef MPI
+  use string_method, only : string_calc
+#endif
+
   implicit none
-  
+
   integer, intent(in) :: nstep
 
 #ifdef PUPIL_SUPPORT
@@ -214,7 +218,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
 
   _REAL_ epolar, aveper, aveind, avetot, emtot, dipiter, dipole_temp
   integer, save :: newbalance
-   
+
   ! Aceelerated MD variables
   _REAL_ amd_totdih
 
@@ -233,7 +237,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   if ( idecomp /= 0 .and. icfe == 0) then
     call init_dec
   end if
-  ene(:) = ZERO 
+  ene(:) = ZERO
   call zero_pot_energy(pot)
 
   belly = ibelly > 0
@@ -288,7 +292,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
                            ix(i56), ix(i58), ix(ibellygp))
     call timer_stop(TIME_QMMMVARIABLESOLVCALC)
     call timer_stop(TIME_QMMM)
-  end if 
+  end if
   ! End QM/MM variable QM solvent scheme
 
   if (iamoeba .eq. 1) then
@@ -424,7 +428,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
     call timer_stop(TIME_EGB)
   end if
   ! End EGB
- 
+
   ! QM/MM Contributions are now calculated before the NON-Bond info.
   if (qmmm_nml%ifqnt) then
 
@@ -539,7 +543,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
             call lrt_solute_sasa(x,natom, xx(l165))
           end if
 
-          ! call normal_ewald force this will overwrite everything 
+          ! call normal_ewald force this will overwrite everything
           ! computed above except energy_m0 and energy_w0
           call ewald_force(x, natom, ix(i04), ix(i06), xx(l15), cn1, cn2, &
                            cn6, eelt, epolar, f, xx, ix, ipairs, xx(l45), &
@@ -591,6 +595,10 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
 
    ! End of non-bonded computations
    call timer_stop(TIME_NONBON)
+
+#ifdef MPI
+   if (sanderrank == 0) call string_calc(x(1:natom*3), f(1:natom*3))
+#endif
 
    ! Calculate other contributions to the forces
    !   - When igb==10, a Poisson-Boltzmann solvent is active.  All nonbonds
