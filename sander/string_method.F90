@@ -57,7 +57,7 @@ module string_method
     logical :: string_defined = .false.
     logical :: server !Whether the current node is the server
     logical :: terminal !Whether the current node is at the end of the string
-    
+
     logical :: string_move !Whether the string is allowed to move
     logical :: fix_ends    !Whether the terminal nodes are kept fixed
     logical :: write_M     !Whether Minv array should be written to the string file
@@ -125,6 +125,11 @@ module string_method
     real*8, dimension(:,:), allocatable :: Minv_point !Metric tensor at each point
     !-------------------------
 
+    !---For minimization---
+    logical :: minimize !Whether the minimization (not dynamics) is performed
+    integer :: nodes !Number of string nodes, node to take bias parameters from
+    !----------------------
+
 !==============================================================================
 contains
 !==============================================================================
@@ -172,6 +177,9 @@ contains
                             reweight_z,&
                             points_per_node,&
                             nbins,&
+                            minimize,&
+                            nodes,&
+                            node,&
                             read_pos
 
         if( sanderrank > 0 ) return
@@ -196,6 +204,9 @@ contains
         generate_pos = .false.
         rescale_forces = .true.
         only_PMF = .false.
+        minimize = .false.
+        nodes = 0
+        node = 0
         guess_file = ""
         CV_file="CVs"
 
@@ -224,11 +235,19 @@ contains
     
         !Read CV definitions and calculate the initial values
         call prepare_CVs(trim(adjustl(CV_file)))
-        
-        call mpi_comm_rank(commmaster, proc, ierr)
-        call mpi_comm_size(commmaster, nnodes, ierr)
+
+        if (.not. minimize) then
+            call mpi_comm_rank(commmaster, proc, ierr)
+            call mpi_comm_size(commmaster, nnodes, ierr)
+        end if
+
+        if (minimize) then
+            proc = 0
+            if (nodes == 0 .or. node == 0) call write_error("nodes and node must be provided for minimization")
+            nnodes = nodes
+        end if
         proc = proc + 1
-        node = proc
+        if (.not. minimize) node = proc
         if (points_per_node == -1) points_per_node = 100/nnodes+1
         if (points_extra == -1) points_extra = points_per_node*5
 
@@ -238,15 +257,14 @@ contains
         allocate(l_buffer(buffer_size), weight_buffer(buffer_size), CV_buffer(nCV,buffer_size))
         allocate (n(nCV,nnodes), decomp_coef(nCV,nnodes), Mav(msize,nnodes), Minv(msize,nnodes), B(msize, nnodes))
         allocate(decomp_coef_spline(nnodes/2-1,5,nCV), string_spline(nnodes-1,5,nCV), string_spline_smooth(nnodes/2-1,5,nCV))
-        
+
         REX_hist = 0
         node_to_proc = (/(i, i=0,nnodes-1)/) !MPI numbers processors from 0
         proc_to_node = node_to_proc
-        pos = -2        
-        
+        pos = -2
         call update_CV(x)
         
-        if (only_PMF) then
+        if (only_PMF .or. minimize) then
             string_move = .false.
             preparation_steps = 0
             read_M = .true.
@@ -267,21 +285,21 @@ contains
         
         !Read the initial guess and interpolate nnodes points along the initial guess
         call read_initial_guess
-        
-        call string_PMF_prepare        
+
+        call string_PMF_prepare
         call reparameterize_linear
         if (.not. string_move) call update_path
         !call reparameterize_splines
 
         K_d = 0._8
-        if (.not. only_PMF) then
+        if (.not. (only_PMF .or. minimize)) then
             K_l = force_constant
             if (force_constant < 0) K_l = RT/((string_length/(nnodes-1))**2*0.25_8)
             K_d = K_l(node)*0.5_8 !By default K_d is half of K_l    
         end if
         if (force_constant_d > 0) K_d = force_constant_d
         force_scale = 1._8
-        call update_B        
+        if (.not. minimize) call update_B
 
         dat_unit = -1
         call assign_dat_file
@@ -293,9 +311,9 @@ contains
             call write_string(0)
             call write_params
         end if
-        
+
         string_defined = .true.
-        
+
         write(6,*)
         write(6,"(A)")         "---String method------------------"
         write(6,"(A20,I15)")   "Number of CVs    ", nCV
@@ -315,7 +333,7 @@ contains
             real*8, dimension(msize) :: Mtmp, Mtmpinv
         
             u=next_unit()
-            if (only_PMF) then
+            if (only_PMF .or. minimize) then
                 open(unit=u, file="0_final.string", status="old")
                 read(u,*) string
                 read(u,*) Minv
@@ -428,7 +446,7 @@ contains
         end if
         if (dat_unit > -1) close(dat_unit)
         
-        call mpi_barrier(commmaster, ierr)
+        if (.not. minimize) call mpi_barrier(commmaster, ierr)
         dat_unit = next_unit()
         open(unit=dat_unit, file=trim(dir)//trim(snode)//trim(ext), access="append")
         if (.not. string_move .and. .not. exist) write(dat_unit,"(4E15.5E2)") K_l(node), pos(node), K_d, 0._8 !In case WHAM will be used
@@ -439,15 +457,17 @@ contains
     
     
     !==================================================================
-    subroutine string_calc(x, force)
+    subroutine string_calc(x, force, energy)
     
         real*8, dimension(:), intent(in) :: x
         real*8, dimension(:), intent(inout) :: force
+        real*8, intent(out) :: energy
 
         real*8 :: dpos_tmp, dK_tmp, pos_target, delta, sigma2, sigma2_target
         real*8 :: s, z
         real*8, dimension(nCV) :: dz_tmp
-        
+
+        energy = 0
         if (.not. string_defined) return
         if( sanderrank > 0 ) return
 
@@ -460,7 +480,13 @@ contains
             call add_force_ld
         else !If string is not moving, the Umbrella Sampling along the path CV is performed
             call add_force_sz
-        end if        
+        end if
+
+        if (minimize) then
+            dz_tmp = 0
+            call write_dat
+            return
+        end if
 
         !Update the Mav and Minv matrices
         if (string_move) then
@@ -610,7 +636,7 @@ contains
             end if
         
         end subroutine stop_string
-        !--------------------------
+        !--------------------------`
         
         
         !--------------------------
@@ -695,6 +721,7 @@ contains
             real*8, dimension(natom*3) :: grad_s, grad_z
             
             call get_s(CVs, s, z, Jacobian, grad_s, grad_z)
+            energy = K_l(node)*0.5*(s-pos(node))**2 + K_d*0.5*merge(z, 0._8, z>0._8)**2
             force = force - force_scale* &
                             (K_l(node)*(s-pos(node))*grad_s + K_d*merge(z, 0._8, z>0._8)*grad_z)
         
@@ -886,6 +913,9 @@ contains
         
         call update_CVs(x)
         CV(:,node) = CVs
+
+        if (minimize) return
+
         rcv_size = nCV
 
         call mpi_allgatherv(CV(:,node), nCV, mpi_real8, CV, &
@@ -1084,19 +1114,33 @@ contains
         real*8, dimension(nnodes) :: L
         real*8, dimension(nCV) :: dz
 
+        if (minimize) then
+            call to_continuous(string)
+            !---Build array of string arc lengths up to each node---
+            L(1) = 0._8
+            do i = 2, nnodes
+                L(i) = L(i-1) + CV_distance(string(:,i-1), string(:,i), (Minv(:,i-1)+Minv(:,i))*0.5_8)
+            end do
+            string_length = L(nnodes)
+            !-------------------------------------------------------
+            call CubicSplinesFitND(L, string, string_spline_smooth)
+            call to_box(string(:,node))
+            return
+        end if
+
         rcv_size = msize
         call mpi_allgatherv(Minv(:,node), msize, mpi_real8, Minv, &
                            rcv_size, proc_to_node*msize, mpi_real8, commmaster, ierr)
         rcv_size = nCV
         call mpi_allgatherv(string(:,node), nCV, mpi_real8, string, rcv_size, &
-                            proc_to_node*nCV, mpi_real8, commmaster, ierr)        
+                            proc_to_node*nCV, mpi_real8, commmaster, ierr)
         rcv_size = 1
         call mpi_allgatherv(pos(node), 1, mpi_real8, pos, rcv_size, &
-                            proc_to_node, mpi_real8, commmaster, ierr)        
-                            
+                            proc_to_node, mpi_real8, commmaster, ierr)
+
         call to_continuous(string)
-                
-                
+
+
         if (rescale_forces) K_l = K_l*string_length**2
         !---Build array of string arc lengths up to each node---
         L(1) = 0._8
@@ -1110,14 +1154,14 @@ contains
         end if
         !-------------------------------------------------------
         if (rescale_forces) K_l = K_l/string_length**2
-        
+
         if (pos(1) < -1) then !If interpolating for the first time, take equidistant points
             pos(node) = string_length*(node-1)/(nnodes-1)
         else
             !Rescale positions to the new string length
             pos(node) = pos(node)*string_length/pos(nnodes)
         end if
-        
+
         !---Obtain new nodes by simple linear interpolation---
         if (.not. terminal) then
             j = 0

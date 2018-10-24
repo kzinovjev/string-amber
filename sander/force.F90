@@ -229,6 +229,8 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   ! MuSiC
   _REAL_ :: music_vdisp, music_vang, music_vgauss, music_spohr89
 
+  real*8 :: string_energy
+
   ect = 0.0
 
   call trace_enter( 'force' )
@@ -597,7 +599,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
    call timer_stop(TIME_NONBON)
 
 #ifdef MPI
-   if (sanderrank == 0) call string_calc(x(1:natom*3), f(1:natom*3))
+   if (sanderrank == 0) call string_calc(x(1:natom*3), f(1:natom*3), string_energy)
 #endif
 
    ! Calculate other contributions to the forces
@@ -1091,7 +1093,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   pot%polar = epolar
   pot%tot   = pot%vdw + pot%elec + pot%gb + pot%pb + pot%bond + pot%angle + &
               pot%dihedral + pot%vdw_14 + pot%elec_14 + pot%hbond + &
-              pot%constraint + pot%rism + pot%ct
+              pot%constraint + pot%rism + pot%ct + string_energy
   pot%tot = pot%tot + pot%polar + pot%surf + pot%scf + pot%disp
 
   !Charmm related

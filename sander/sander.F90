@@ -1525,17 +1525,17 @@ subroutine sander()
       call mcbar_setup(ig)
     end if
 
+#ifdef MPI
+    inquire(file = "STRING", exist=string_defined)
+    if (string_defined) call string_define(x(lcrd:lcrd+natom*3-1))
+#endif
+
     ! Input flag imin determines the type of calculation: MD, minimization, ...
     select case (imin)
       case (0)
 
         ! Dynamics:
         call timer_start(TIME_RUNMD)
-
-#ifdef MPI
-        inquire(file = "STRING", exist=string_defined)
-        if (string_defined) call string_define(x(lcrd:lcrd+natom*3-1))
-#endif
 
         ! Set up Accelerated Molecular Dynamics 
         if (iamd .gt. 0) then
