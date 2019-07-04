@@ -1,0 +1,25 @@
+4
+
+$COLVAR
+COLVAR_type = "BOND"
+atoms = 1, 5
+box = 0, 3.5
+$END
+
+$COLVAR
+COLVAR_type = "BOND"
+atoms = 1, 6
+box = 0, 3.5
+$END
+
+$COLVAR
+COLVAR_type = "PPLANE"
+atoms = 1, 3, 2, 4
+$END
+
+$COLVAR
+COLVAR_type = "ANGLE"
+atoms = 5, 1, 6
+box = 160, 210
+$END
+
