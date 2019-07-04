@@ -3,8 +3,9 @@
 !                 The String method Module
 !===============================================================================
 ! 
-!    The optimized version of the on-the-fly string method
-!    Details about this method can be found in ?????????????
+!    The implementation of adaptive string method
+!    If you use this software in your work, please cite
+!    J. Phys. Chem. A, 2017, 121, 51, 9764-9772
 !
 !   Public subroutines:
 !
