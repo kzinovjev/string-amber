@@ -357,10 +357,11 @@ contains
                 allocate(string_init(nCV,ninit))
                 read(u,*) string_init
                 if (read_M) read(u,*) Minv
+                generate_pos = .true.
                 if (read_pos) then
                     read(u,*) pos
+                    generate_pos = .false.
                 else if (ninit == nnodes) then
-                    generate_pos = .true.
                     string = string_init
                 end if
                 close(u)
@@ -406,7 +407,7 @@ contains
             !-------------------------------------------------------            
             
             !---Obtain new nodes by simple linear interpolation---
-            j = 0
+            j = 2
             do i = 2, nfinal-1
                 if (pos(1) < -1) then    
                     Lnew = Ltotal*(i-1)/(nfinal-1) !string arc length up to the new node i
@@ -1164,7 +1165,7 @@ contains
 
         !---Obtain new nodes by simple linear interpolation---
         if (.not. terminal) then
-            j = 0
+            j = 2
             do while( L(j) < pos(node) )
                 j = j + 1
             end do
