@@ -1,6 +1,9 @@
 # string-amber
 Adaptive string method implementation in sander (AmberTools18)
 
+If you use this software in your work, please cite:
+https://doi.org/10.1021/acs.jpca.7b10842
+
 ### Installation
 1. Compile serial version of AmberTools:
    ```bash
