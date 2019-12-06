@@ -15,6 +15,7 @@ module CV_utilities
 
         use CV_module
         use string_utilities, only : next_unit, write_error
+		use multiCV_module
 
 #include "../include/memory.h"	
 
@@ -27,6 +28,7 @@ module CV_utilities
 		real*8, dimension(2) :: box
 		logical :: periodic
 		real*8  :: period
+		integer :: mindex
 	end type CV
 	
 	integer :: nCV   !number of collective variables
@@ -48,8 +50,9 @@ contains
 		integer, dimension(4) :: atoms
 		real*8, dimension(2) :: box
 		character*20 :: COLVAR_type
-	
-		namelist /COLVAR/ COLVAR_type, atoms, box
+		character*200 :: atoms_file
+
+		namelist /COLVAR/ COLVAR_type, atoms, box, atoms_file
 	
 		u = next_unit()
 		open(unit=u, file=filename, status="old")
@@ -73,6 +76,21 @@ contains
 					CV_list(i)%period = 360._8
 				case ("PPLANE")
 					CV_list(i)%CV_type = 4
+				case ("MBOND")
+					CV_list(i)%CV_type = MBOND_TYPE
+					call prepare_multiCV(MBOND_TYPE, atoms_file, CV_list(i)%mindex)
+				case ("MANGLE")
+					CV_list(i)%CV_type = MANGLE_TYPE
+					call prepare_multiCV(MANGLE_TYPE, atoms_file, CV_list(i)%mindex)
+				case ("MDIHEDRAL")
+					CV_list(i)%CV_type = MDIHEDRAL_TYPE
+					CV_list(i)%periodic = .true.
+					CV_list(i)%period = 360._8
+					call prepare_multiCV(MDIHEDRAL_TYPE, atoms_file, CV_list(i)%mindex)
+				case ("MPPLANE")
+					CV_list(i)%CV_type = MPPLANE_TYPE
+					call prepare_multiCV(MPPLANE_TYPE, atoms_file, CV_list(i)%mindex)
+
 			end select
 			CV_list(i)%atoms = atoms
 			CV_list(i)%box = box
@@ -103,6 +121,8 @@ contains
 					call CV_dihedral( x, CV_list(i)%atoms, CVs(i), Jacobian(:,i) )
 				case (4)
 					call CV_pointplane( x, CV_list(i)%atoms, CVs(i), Jacobian(:,i) )
+				case (MBOND_TYPE, MANGLE_TYPE, MDIHEDRAL_TYPE, MPPLANE_TYPE)
+					call calculate_multiCV(CV_list(i)%mindex, x, CVs(i), Jacobian(:,i) )
 				end select
 		end do
 		
@@ -110,7 +130,7 @@ contains
    
 	end subroutine update_CVs
 	!================================
-	
+
 	
 	
 	!================================
