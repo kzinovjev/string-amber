@@ -13,6 +13,7 @@ module multiCV_module
                           MPPLANE_TYPE = 8
 
     integer, dimension(MBOND_TYPE:MPPLANE_TYPE) :: TYPE_NCENTERS = (/ 2, 3, 4, 4 /)
+    real*8, dimension(12) :: centers, centers_gradient
 
 
     type atom_list
@@ -91,12 +92,9 @@ contains
         real*8, dimension(:), intent(out) :: gradient
 
         integer :: i
-        real*8, dimension(:), allocatable :: centers, centers_gradient
         type(multiCV), pointer :: CV
 
         CV => multiCV_list(index)
-
-        allocate(centers(CV%ncenters*3), centers_gradient(CV%ncenters*3))
 
         do i = 1, CV%ncenters
             call set_xyz(i, centers, get_center(CV%centers(i)%atoms, x))
