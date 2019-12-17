@@ -1112,7 +1112,7 @@ contains
     !==================================================================
     subroutine reparameterize_linear
     
-        integer :: i
+        integer :: i, j
         real*8, dimension(nnodes) :: L
         real*8, dimension(nCV) :: dz
 
@@ -1630,6 +1630,7 @@ contains
         real*8, dimension(natom*3,nCV), intent(in), optional :: Jacobian
         real*8, dimension(natom*3), intent(out), optional :: grad_s, grad_z
 
+        integer :: i
         real*8 :: d, sumw
         
         real*8, dimension(npointstotal) :: w

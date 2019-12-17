@@ -46,7 +46,7 @@ contains
 	
 		character(len=*), intent(in) :: filename
 		
-		integer :: u
+		integer :: i, u
 		integer, dimension(4) :: atoms
 		real*8, dimension(2) :: box
 		character*20 :: COLVAR_type
