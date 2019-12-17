@@ -13,7 +13,7 @@
 !===============================================================================
 module CV_utilities
 
-        use CV_module
+        use CV_module, only : CV_bond, CV_angle, CV_dihedral, CV_pointplane
         use string_utilities, only : next_unit, write_error
         use multiCV_module
 
