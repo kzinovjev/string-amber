@@ -137,8 +137,9 @@ contains
         reference = get_xyz(indexes(1), x)
 
         do i = 1, size(indexes)
-            xyz = get_xyz(indexes(i), x)
-            center = center + reference + map_periodic(xyz-reference)
+            xyz = get_xyz(indexes(i), x) - reference
+            call map_periodic(xyz)
+            center = center + reference + xyz
         end do
 
         center = center / real(size(indexes), kind=8)
