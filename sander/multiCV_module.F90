@@ -115,7 +115,8 @@ contains
 
         gradient = 0.
         do i = 1, CV%ncenters
-            gradient = gradient + unpack_gradient(CV%centers(i)%atoms, &
+            gradient = gradient + unpack_gradient(size(gradient) / 3, &
+                                                  CV%centers(i)%atoms, &
                                                   get_xyz(i, centers_gradient))
         end do
 
@@ -147,13 +148,14 @@ contains
     end function get_center
 
 
-    function unpack_gradient(indexes, center_gradient) result(gradient)
+    function unpack_gradient(natoms, indexes, center_gradient) result(gradient)
 
+        integer, intent(in) :: natoms
         integer, dimension(:), intent(in) :: indexes
         real*8, dimension(:), intent(in) :: center_gradient
 
         integer :: i
-        real*8, dimension(size(indexes)*3) :: gradient
+        real*8, dimension(natoms*3) :: gradient
 
         gradient = 0.
         do i = 1, size(indexes)
