@@ -72,10 +72,10 @@ contains
         CV%CV_type = CV_type
         CV%ncenters = TYPE_NCENTERS(CV_type)
         do i = 1, CV%ncenters
-            read(u) natoms
+            read(u,*) natoms
             CV%centers(i)%size = natoms
             allocate(CV%centers(i)%atoms(natoms))
-            read(u) CV%centers(i)%atoms
+            read(u,*) CV%centers(i)%atoms
         end do
 
         close(u)
