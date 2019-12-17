@@ -15,7 +15,7 @@ module CV_utilities
 
         use CV_module
         use string_utilities, only : next_unit, write_error
-		use multiCV_module
+        use multiCV_module
 
 #include "../include/memory.h"	
 
