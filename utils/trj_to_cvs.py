@@ -46,7 +46,7 @@ def extract_value(lines, key):
     :param key: substring that the line with the value must contain
     :return: everything after '=' from a first line in lines that contains key
     """
-    raw_value = filter(lambda line: key in line, lines)[0].split('= ')[1]
+    raw_value = list(filter(lambda line: key in line, lines))[0].split('= ')[1]
     return raw_value.strip('\n').strip('"').strip("'")
 
 
@@ -100,7 +100,7 @@ def read_raw_cvs(filename):
 
 
 def read_cvs(filename):
-    return map(parse_cv, read_raw_cvs(filename))
+    return list(map(parse_cv, read_raw_cvs(filename)))
 
 
 def load_trj(filename, top):
@@ -124,7 +124,7 @@ def xyz_to_cv_values(xyz, cvs):
 
 
 def print_cv_values(cv_values):
-    print('{:13.5e}' * len(cv_values)).format(*cv_values)
+    print(('{:13.5e}' * len(cv_values)).format(*cv_values))
 
 
 def main():
