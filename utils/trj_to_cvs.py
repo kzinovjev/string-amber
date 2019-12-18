@@ -18,6 +18,20 @@ CV_KIND_DICT = {
 }
 
 
+MULTICV_KIND_DICT = {'MBOND': (2, 'BOND'),
+                     'MANGLE': (3, 'ANGLE'),
+                     'MDIHEDRAL': (4, 'DIHEDRAL'),
+                     'MPPLANE': (4, 'PPLANE')}
+
+
+def get_center(xyz, indices):
+    return np.mean(np.take(xyz, indices, axis=0), axis=0)
+
+
+def get_centers(xyz, centers):
+    return [get_center(xyz, indices) for indices in centers]
+
+
 def eval_cv(xyz, atoms, callback):
     return callback([xyz[atom-1]*mm.nanometer for atom in atoms])
 
@@ -32,7 +46,27 @@ def extract_value(lines, key):
     :param key: substring that the line with the value must contain
     :return: everything after '=' from a first line in lines that contains key
     """
-    return filter(lambda line: key in line, lines)[0].split('= ')[1].strip('\n')
+    raw_value = filter(lambda line: key in line, lines)[0].split('= ')[1]
+    return raw_value.strip('\n').strip('"').strip("'")
+
+
+def read_centers(atoms_file, n_centers):
+    with open(atoms_file, 'r') as f:
+        data = [line for line in f if len(line.strip())]
+
+    if len(data) != n_centers*2:
+        raise IOError('Wrong number of non-empty lines in atoms_file')
+
+    return [[int(x) - 1 for x in line.split()]
+            for line in data[1::2]]
+
+
+def parse_multicv(kind, atoms_file):
+    n_centers, base_kind = MULTICV_KIND_DICT[kind]
+    centers = read_centers(atoms_file, n_centers)
+    return lambda xyz: eval_cv(get_centers(xyz, centers),
+                               range(1, n_centers + 1),
+                               CV_KIND_DICT[base_kind])
 
 
 def parse_cv(raw_cv):
@@ -40,7 +74,11 @@ def parse_cv(raw_cv):
     :param raw_cv: raw text lines defining a single CV
     :return: a callable that accepts xyz and returns the CV value
     """
-    kind = extract_value(raw_cv, 'COLVAR_type').strip('"')
+    kind = extract_value(raw_cv, 'COLVAR_type')
+
+    if kind in MULTICV_KIND_DICT.keys():
+        return parse_multicv(kind, extract_value(raw_cv, 'atoms_file'))
+
     atoms = [int(idx) for idx in extract_value(raw_cv, 'atoms').split(',')]
     return lambda xyz: eval_cv(xyz, atoms, CV_KIND_DICT[kind])
 
