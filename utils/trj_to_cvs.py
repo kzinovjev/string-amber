@@ -68,15 +68,15 @@ def read_cvs(filename):
 def load_trj(filename, top):
     try:
         return md.load(filename, top=top)
-    except IOError:
+    except (IOError, TypeError):
         pass
     try:
         return md.load_netcdf(filename, top=top)
-    except IOError:
+    except (IOError, TypeError):
         pass
     try:
         return md.load_mdcrd(filename, top=top)
-    except IOError:
+    except (IOError, TypeError):
         print('Trajectory format not recognized. Exiting.')
         exit()
 

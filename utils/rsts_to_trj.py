@@ -14,11 +14,11 @@ def load_rst(filename, top):
     print("Loading {}".format(filename))
     try:
         return md.load_ncrestrt(filename, top=top)
-    except IOError:
+    except (IOError, TypeError):
         pass
     try:
         return md.load_restrt(filename, top=top)
-    except IOError:
+    except (IOError, TypeError):
         print('Trajectory format not recognized. Exiting.')
         exit()
 
