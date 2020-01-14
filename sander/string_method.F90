@@ -803,9 +803,11 @@ contains
             open(unit=u, file=trim(dir)//trim(filename)//"_CV.string", status="replace")
             write(frmt,*) nCV
             frmt = "(F15.5,"//trim(adjustl(frmt))//"E15.5E2)"
+            call to_continuous(string)
             do i = 1, nnodes
                 write(u,frmt) pos(i), string(:,i)
             end do
+            call to_period(string)
             close(u)
          end if
         
