@@ -650,9 +650,11 @@ contains
             
             integer :: i, u, n
             real*8, dimension(nnodes) :: params_tmp
+            real*8, dimension(nCV) :: reference
             real*8, dimension(nCV, nnodes) :: string_tmp
             character*200 :: si
-            
+
+            reference = string(:, 1)
             string = 0._8
             n = (last-first)/output_period+1
             
@@ -662,6 +664,9 @@ contains
                 si = adjustl(si)
                 open(unit=u, file=trim(dir)//trim(si)//".string", status="old")
                 read(u,*) string_tmp
+                string_tmp(:, 1) = reference + &
+                        map_periodic(string_tmp(:, 1) - reference)
+                call to_continuous(string_tmp)
                 string = string + string_tmp
             end do
             string = string/n
