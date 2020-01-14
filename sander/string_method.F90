@@ -47,7 +47,7 @@ module string_method
     integer :: stop_step !step at which to stop the movement of the string
 
     real*8  :: force_scale !For gradual increase of forces during preparation
-    real*8  :: gamma, position_gamma, force_gamma !friction
+    real*8  :: gamma, position_gamma, force_gamma, force_kappa !friction
     real*8  :: Mav_damp !damping coefficient for Mav averaging
     real*8  :: RT !R*temperature
     real*8  :: K_d !Force constant for the d coordinate
@@ -170,6 +170,7 @@ contains
                             gamma,&
                             position_gamma,&
                             force_gamma,&
+                            force_kappa,&
                             Mav_damp,&
                             write_M,&
                             read_M,&
@@ -198,6 +199,7 @@ contains
         gamma = 2D3
         position_gamma = 2D5
         force_gamma = 5
+        force_kappa = 1000
         Mav_damp = 1D-3
         write_M = .false.
         read_M = .false.
@@ -533,7 +535,7 @@ contains
             if (step < 100) then
                 dK_tmp = 0.!Wait for mean_sigma2 and mean_dx to converge
             else    
-                dK_tmp = RT/sigma2_target - RT/(mean_sigma2) +1000*mean_dx**2!The last term to make K slightly larger when far
+                dK_tmp = RT/sigma2_target - RT/(mean_sigma2) + force_kappa*mean_dx**2!The last term to make K slightly larger when far
             end if
             dpos_tmp = dpos_tmp*K_l(node)
             
