@@ -47,7 +47,7 @@ module string_method
     integer :: stop_step !step at which to stop the movement of the string
 
     real*8  :: force_scale !For gradual increase of forces during preparation
-    real*8  :: gamma, position_gamma, force_gamma !friction
+    real*8  :: gamma, position_gamma, force_gamma, force_kappa !friction
     real*8  :: Mav_damp !damping coefficient for Mav averaging
     real*8  :: RT !R*temperature
     real*8  :: K_d !Force constant for the d coordinate
@@ -169,6 +169,7 @@ contains
                             gamma,&
                             position_gamma,&
                             force_gamma,&
+                            force_kappa,&
                             Mav_damp,&
                             write_M,&
                             read_M,&
@@ -196,6 +197,7 @@ contains
         gamma = 2D3
         position_gamma = 2D5
         force_gamma = 5
+        force_kappa = 1000
         Mav_damp = 1D-3
         write_M = .false.
         read_M = .false.
@@ -541,7 +543,7 @@ contains
             if (step < 100) then
                 dK_tmp = 0.!Wait for mean_sigma2 and mean_dx to converge
             else    
-                dK_tmp = RT/sigma2_target - RT/(mean_sigma2) +1000*mean_dx**2!The last term to make K slightly larger when far
+                dK_tmp = RT/sigma2_target - RT/(mean_sigma2) + force_kappa*mean_dx**2!The last term to make K slightly larger when far
             end if
             dpos_tmp = dpos_tmp*K_l(node)
             
@@ -656,9 +658,11 @@ contains
             
             integer :: i, u, n
             real*8, dimension(nnodes) :: params_tmp
+            real*8, dimension(nCV) :: reference
             real*8, dimension(nCV, nnodes) :: string_tmp
             character*200 :: si
-            
+
+            reference = string(:, 1)
             string = 0._8
             n = (last-first)/output_period+1
             
@@ -668,6 +672,9 @@ contains
                 si = adjustl(si)
                 open(unit=u, file=trim(dir)//trim(si)//".string", status="old")
                 read(u,*) string_tmp
+                string_tmp(:, 1) = reference + &
+                        map_periodic(string_tmp(:, 1) - reference)
+                call to_continuous(string_tmp)
                 string = string + string_tmp
             end do
             string = string/n
@@ -809,9 +816,11 @@ contains
             open(unit=u, file=trim(dir)//trim(filename)//"_CV.string", status="replace")
             write(frmt,*) nCV
             frmt = "(F15.5,"//trim(adjustl(frmt))//"E15.5E2)"
+            call to_continuous(string)
             do i = 1, nnodes
                 write(u,frmt) pos(i), string(:,i)
             end do
+            call to_period(string)
             close(u)
          end if
         
@@ -1120,7 +1129,7 @@ contains
     !==================================================================
     subroutine reparameterize_linear
     
-        integer :: i
+        integer :: i, j
         real*8, dimension(nnodes) :: L
         real*8, dimension(nCV) :: dz
 
@@ -1638,6 +1647,7 @@ contains
         real*8, dimension(natom*3,nCV), intent(in), optional :: Jacobian
         real*8, dimension(natom*3), intent(out), optional :: grad_s, grad_z
 
+        integer :: i
         real*8 :: d, sumw
         
         real*8, dimension(npointstotal) :: w

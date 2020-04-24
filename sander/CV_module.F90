@@ -1,6 +1,6 @@
 module CV_module
 
-    public :: CV_bond, CV_angle, CV_dihedral, CV_pointplane
+    public :: CV_bond, CV_angle, CV_dihedral, CV_pointplane, map_periodic
 	private
 contains
 

@@ -163,7 +163,7 @@ MMOBJ=  file_io_dat.o constants.o state.o memory_module.o stack.o \
     $(EMILOBJ) $(AMOEBAOBJ) $(SANDER_RISM_INTERFACE) AmberNetcdf.o bintraj.o binrestart.o \
     spatial_recip.o spatial_fft.o parms.o softcore.o mbar.o linear_response.o molecule.o xref.o dssp.o \
     charmm.o crg_reloc.o amd.o scaledMD.o barostats.o random.o les.o music_module.o \
-    CV_module.o splines_utilities.o string_utilities.o CV_utilities.o string_method.o
+    CV_module.o multiCV_module.o splines_utilities.o string_utilities.o CV_utilities.o string_method.o
 
 APIOBJ=  file_io_dat.o constants.o state.o memory_module.o stack.o \
     nose_hoover.o nose_hoover_init.o \
@@ -272,7 +272,7 @@ LESOBJ= memory_module.o stack.o file_io_dat.o \
     AmberNetcdf.o bintraj.LES.o binrestart.LES.o getcor.LES.o mdfil.LES.o mdwrit.LES.o \
     lmod.LES.o trajene.o ew_box.LES.o minrit.LES.o set.LES.o qm_mm.LES.o amd.o scaledMD.o \
     music_module.o \
-    CV_module.o splines_utilities.o string_utilities.o CV_utilities.o string_method.o
+    CV_module.o multiCV_module.o splines_utilities.o string_utilities.o CV_utilities.o string_method.o
 ifdef LIOLIBS
 LESOBJ += qm2_extern_lio_module.o
 endif
