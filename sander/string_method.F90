@@ -35,7 +35,7 @@ module string_method
     
     private
     
-    public :: string_define, string_calc
+    public :: string_define, string_calc, string_defined
     
     save
 
@@ -312,8 +312,6 @@ contains
             call write_string(0)
             call write_params
         end if
-
-        string_defined = .true.
 
         write(6,*)
         write(6,"(A)")         "---String method------------------"

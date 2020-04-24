@@ -146,7 +146,7 @@ subroutine sander()
   use music_module, only: read_music_nml, print_music_settings
 
 #ifdef MPI
-  use string_method, only : string_define
+  use string_method, only : string_define, string_defined
 #endif
 
   implicit none
@@ -227,10 +227,6 @@ subroutine sander()
 #endif
   _REAL_ :: box_center(3)
 
-#ifdef MPI
-  logical :: string_defined
-#endif
-
 #ifdef MPI_DEBUGGER
   integer, volatile :: release_debug
 
@@ -252,6 +248,10 @@ subroutine sander()
   ! threads you want to watch with a debugger are watched and all those
   ! threads are continued.
   call mpi_barrier(mpi_comm_world, ier)
+#endif
+
+#ifdef MPI
+    inquire(file = "STRING", exist=string_defined)
 #endif
 
   ! Here begin the executable statements.  Start by initializing the cpu
@@ -1526,7 +1526,6 @@ subroutine sander()
     end if
 
 #ifdef MPI
-    inquire(file = "STRING", exist=string_defined)
     if (string_defined) call string_define(x(lcrd:lcrd+natom*3-1))
 #endif
 
