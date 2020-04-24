@@ -63,7 +63,6 @@ module string_method
     logical :: fix_ends    !Whether the terminal nodes are kept fixed
     logical :: write_M     !Whether Minv array should be written to the string file
     logical :: read_M       !Whether Minv are provided. If yes, no Minv update is performed
-    logical :: read_pos       !Whether initial positions are provided
     logical :: generate_pos !Whether positions of nodes should be generated from the initial guess
     logical :: rescale_forces !Whether the force constants should be rescaled every time the string length changes
     
@@ -147,8 +146,8 @@ contains
 
         integer :: i, j, unit
         real*8  :: force_constant, force_constant_d
-        character*200 :: CV_file, guess_file
-        logical :: only_PMF, read_params
+        character*200 :: CV_file, guess_file, params_file
+        logical :: only_PMF
         
     
         namelist /STRINGSETUP/ dir,&
@@ -173,15 +172,14 @@ contains
                             Mav_damp,&
                             write_M,&
                             read_M,&
-                            read_params,&
+                            params_file,&
                             remove_z_bias,&
                             reweight_z,&
                             points_per_node,&
                             nbins,&
                             minimize,&
                             nodes,&
-                            node,&
-                            read_pos
+                            node
 
         if( sanderrank > 0 ) return
 
@@ -201,14 +199,14 @@ contains
         Mav_damp = 1D-3
         write_M = .false.
         read_M = .false.
-        read_pos = .false.
-        generate_pos = .false.
+        generate_pos = .true.
         rescale_forces = .true.
         only_PMF = .false.
         minimize = .false.
         nodes = 0
         node = 0
         guess_file = ""
+        params_file = ""
         CV_file="CVs"
 
         !---PMF default values---
@@ -269,7 +267,6 @@ contains
             string_move = .false.
             preparation_steps = 0
             read_M = .true.
-            read_params = .true.
             rescale_forces = .false.
             if (remove_z_bias) force_constant_d = 0
         end if
@@ -301,6 +298,8 @@ contains
         if (force_constant_d > 0) K_d = force_constant_d
         force_scale = 1._8
         if (.not. minimize) call update_B
+
+        if (trim(params_file) /= "") call read_params
 
         dat_unit = -1
         call assign_dat_file
@@ -355,22 +354,21 @@ contains
                 read(u,*) ninit
                 allocate(string_init(nCV,ninit))
                 read(u,*) string_init
-                if (read_M) read(u,*) Minv
-                generate_pos = .true.
-                if (read_pos) then
-                    read(u,*) pos
-                    generate_pos = .false.
-                else if (ninit == nnodes) then
-                    string = string_init
+                if (read_M) then
+                    read(u,*) Minv
+                    call matinv(Minv(:,node), Mav(:,node))
                 end if
                 close(u)
             end if
             
-            call mpi_allreduce(Mav(:,node), Mtmp, msize, mpi_real8, mpi_sum, commmaster, ierr)
-            Mtmp = Mtmp/nnodes
-            call matinv(Mtmp, Mtmpinv)
-            
-            if (ninit /= nnodes) call interpolate_linear(string_init, string, Mtmpinv)
+            if (ninit /= nnodes) then
+                call mpi_allreduce(Mav(:,node), Mtmp, msize, mpi_real8, mpi_sum, commmaster, ierr)
+                Mtmp = Mtmp/nnodes
+                call matinv(Mtmp, Mtmpinv)
+                call interpolate_linear(string_init, string, Mtmpinv)
+            else
+                string = string_init
+            end if
             deallocate(string_init)
         
         end subroutine read_initial_guess
@@ -423,6 +421,18 @@ contains
     
         end subroutine interpolate_linear
         !--------------------------------
+
+
+        subroutine read_params
+
+            integer :: u
+            u = next_unit()
+            open(unit=u, file=trim(adjustl(params_file)), status="old")
+            read(u,*) pos, K_l
+            close(u)
+            call reparameterize_linear
+
+        end subroutine read_params
   
   
     end subroutine string_define
