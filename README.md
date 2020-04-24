@@ -17,7 +17,7 @@ https://doi.org/10.1021/acs.jpca.7b10842
    $ make install # Use -j option to parallelize
    ```
 
-3. Introduce the changes from the repo to AmberTools/src. Since your AmberTools subversion is most probably different, it is strongly recommended not to copypaste files `sander/Makefile`, `lapack/Makefile`, `sander/sander.F90` and `sander/force.F90`, but compare the contents with the files you have and manually introduce only the changes relevant to the string method. Other files can be copied as is.
+3. Introduce the changes from the repo to AmberTools/src. Since your AmberTools subversion is most probably different, it is strongly recommended not to copypaste files `sander/Makefile`, `lapack/Makefile`, `sander/qm2_extern_module.F90`, `sander/sander.F90` and `sander/force.F90`, but compare the contents with the files you have and manually introduce only the changes relevant to the string method. Other files can be copied as is.
 
 4. Update the depend file:
    ```bash
