@@ -53,7 +53,7 @@ contains
 
 		next_unit = -1
 
-		do i = 10, 100
+		do i = 20, 100
 			inquire(i, opened=opened)
 			if (.not. opened) then
 				next_unit = i
