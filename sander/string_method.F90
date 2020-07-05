@@ -35,7 +35,7 @@ module string_method
     
     private
     
-    public :: string_define, string_calc, string_defined
+    public :: string_define, string_calc, string_defined, minimize
     
     save
 

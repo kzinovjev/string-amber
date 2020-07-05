@@ -56,7 +56,7 @@ module qm2_extern_module
     use full_pimd_vars, only: mybeadid
     use file_io_dat
 #ifdef MPI
-    use string_method, only : string_defined
+    use string_method, only : string_defined, minimize
 #endif
 
 #if defined(MPI)
@@ -91,7 +91,7 @@ module qm2_extern_module
 #if defined(MPI)
     ! In parallel runs, only one thread needs to call the EXTERN program
     if ( mytaskid /= 0 ) return
-    if ((rem > 0) .or. (qmmm_nml%vsolv > 1) .or. string_defined) then
+    if ((rem > 0) .or. (qmmm_nml%vsolv > 1) .or. (string_defined .and. .not. minimize)) then
        ! Add rank for parallel REMD run
        write (id,'(i3.3)') masterrank
     end if
