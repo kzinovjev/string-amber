@@ -128,11 +128,13 @@ def main():
                         default='nc')
     parser.add_argument("--output", help="Name of the output trajectory",
                         default='ts.nc')
+    parser.add_argument("--ts", type=float,
+                        help="RC value to be used as TS", default=None)
     parser.add_argument("--thr", type=float,
                         help="TS threshold", default=0.05)
     args = parser.parse_args()
 
-    ts = get_ts(args.pmf)
+    ts = args.ts or get_ts(args.pmf)
 
     ts_frames = parse_pmf_dat(get_results_dir(), get_ntwx(), ts, args.thr)
 
