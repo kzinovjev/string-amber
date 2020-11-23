@@ -18,7 +18,7 @@ def write_cv(top, raw_cv_def):
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Create CVs file for unbinding")
+    parser = argparse.ArgumentParser(description="Create CVs file from amber masks")
     parser.add_argument("top", help="Topology file")
     parser.add_argument("defs", help="CV definitions")
     args = parser.parse_args()
