@@ -7,7 +7,7 @@ import re
 from operator import itemgetter
 from itertools import groupby
 
-TRAJECTORY_EXTENSION = 'mdcrd'
+TRAJECTORY_EXTENSION = 'nc'
 SANDER_INPUT_EXTENSION = 'in'
 OUTPUT_DIR = 'reorder_trj_results'
 TMP_DIR = '.reorder_trj_tmp'
