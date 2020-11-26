@@ -642,9 +642,9 @@ contains
                 step = 0
                 call average_string(av_step, stop_step) !average of string and parameters
                                                         !is taken over [av_step:stop_step]
+                if (remove_z_bias) K_d = 0._8
                 call assign_dat_file
                 REX_hist = 0
-                if (remove_z_bias) K_d = 0._8
             end if
         
         end subroutine stop_string
