@@ -89,7 +89,7 @@ The `guess` file contains the initial guess for the MFEP. it is defined as a set
 ...
 <CV_1 in point N> <CV_2 in point N> ... <CV_D in point N>  
 ```
-Here D and N are the number of CVs and the number of guess points, respectively. The first and the last points are especially important since they define the ends of the MFEP (the reactants and products free energy minima) in the chosen CV space. While it is possible to put approximate values for these points and let the algorithm optimize them, the default behavior is to keep the ends fixed during the string optimization. This dramatically improves the convergence compared to a "free" string. The positions of the minima have to be obtained by taking the average values of the CVs along unbiased MD trajectories of reactants and products. This can be done with [trj_to_cvs.py]() script:
+Here D and N are the number of CVs and the number of guess points, respectively. The first and the last points are especially important since they define the ends of the MFEP (the reactants and products free energy minima) in the chosen CV space. While it is possible to put approximate values for these points and let the algorithm optimize them, the default behavior is to keep the ends fixed during the string optimization. This dramatically improves the convergence compared to a "free" string. The positions of the minima have to be obtained by taking the average values of the CVs along unbiased MD trajectories of reactants and products. This can be done with [trj_to_cvs.py](utils/trj_to_cvs.py) script:
  ```bash
 $ trj_to_cvs.py CVs <trajectory> <topology> <first frame> <last frame> 
  ```
