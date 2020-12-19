@@ -2,36 +2,36 @@
 
 Table of contents
 
-- Introduction
-- Prerequisites
-- Preparation
-  - CVs file
-  - guess file
-  - STRING file
-- Running the job
-- String preparation stage
-- String optimization stage
-  - convergence.dat
-  - STOP_STRING
-  - *.string
-  - \#.dat
-  - *.PMF
-  - *_CV.PMF
-  - force_constants.dat and node_positions.dat
-  - *.REX
-- Umbrella Sampling stage
-  - 0_final.string and 0_final_CV.string
-  - final_parameters.dat
-  - *_final.PMF
-  - *_CV_final.PMF  
-  - \#_final.dat
-- Analysis
-  - reorder_trj.py
-  - get_pmf_cv_values.py
-  - get_ts_frames.py
-- Other features
-  - Keep the system close to the path during the US stage
-  - Restart the PMF calculation for a converged string
+- [Introduction](#introduction)
+- [Prerequisites](#prerequisites)
+- [Preparation](#preparation)
+  - [CVs file](#cvs-file)
+  - [guess file](#guess-file)
+  - [STRING file](#string-file)
+- [Running the job](#running-the-job)
+- [String preparation stage](#string-preparation-stage)
+- [String optimization stage](#string-optimization-stage)
+  - [convergence.dat](#convergence)
+  - [STOP_STRING](#stop_string)
+  - [*.string](#string)
+  - [\#.dat](#dat)
+  - [*.PMF](#pmf)
+  - [*_CV.PMF](#_cvpmf)
+  - [force_constants.dat and node_positions.dat](force-node-dat)
+  - [*.REX](#rex)
+- [Umbrella Sampling stage](#umbrella-sampling-stage)
+  - [0_final.string and 0_final_CV.string](#final-string)
+  - [final_parameters.dat](#final_parametersdat)
+  - [*_final.PMF](#_finalpmf)
+  - [*_CV_final.PMF](#_cv_finalpmf)  
+  - [\#_final.dat](#_finaldat)
+- [Analysis](#analysis)
+  - [reorder_trj.py](#reorder_trjpy)
+  - [get_pmf_cv_values.py](#get_pmf_cv_valuespy)
+  - [get_ts_frames.py](#get_ts_framespy)
+- [Other features](#other-features)
+  - [Keep the system close to the path during the US stage](#keep-the-system-close-to-the-path-during-the-us-stage)
+  - [Restart the PMF calculation for a converged string](#restart-the-pmf-calculation-for-a-converged-string)
 - [Final remarks](#final-remarks)
 
 Introduction
