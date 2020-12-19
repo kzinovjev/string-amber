@@ -258,7 +258,7 @@ All the files generated during Umbrella Sampling contain "final" in the filename
 
 
 #### *0_final.string* and *0_final_CV.string*
-These are the only `*.string` files written out during the US. Both contain the averaged string that was used to define the path CV. The `0_final.string` also contains some technical information used to [restart the US calculation](). The contents of `0_final_CV.string` are also slightly different: the first column gives the value of the path CV, that corresponds to each US window, while the rest of the columns are values of the CVs, as in the regular `*.string` files described above. This file is therefore useful to relate the PMF with the regions in the CV space. For example, the CV values from the window sampling the maximum of the PMF approximately describe the TS geometry.
+These are the only `*.string` files written out during the US. Both contain the averaged string that was used to define the path CV. The `0_final.string` also contains some technical information used to [restart the US calculation](#restart-the-pmf-calculation-for-a-converged-string). The contents of `0_final_CV.string` are also slightly different: the first column gives the value of the path CV, that corresponds to each US window, while the rest of the columns are values of the CVs, as in the regular `*.string` files described above. This file is therefore useful to relate the PMF with the regions in the CV space. For example, the CV values from the window sampling the maximum of the PMF approximately describe the TS geometry.
 
 #### *final_parameters.dat*
 Contains the positions and force constants of the US windows. Used to [restart US calculation]().
