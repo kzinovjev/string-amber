@@ -59,7 +59,7 @@ It is also beneficial (but not mandatory) to have short unbiased MD trajectories
  
 Apart from the system topology and the structures, ASM calculation requires multiple input files that define all the aspects of the calculation (definitions of the CVs, initial guess etc.). The file format is not very user friendly, but for the most error-prone parts, there are scripts available that make the file generation easier.
  
-#### *CVs* file
+### *CVs* file
 The `CVs` file, as the name suggests, contains the definitions of the CVs used. The easiest way to generate it is to use the [generate_cvs.py](utils/generate_cvs.py) script:
 ```bash
 $ generate_cvs.py <topology> cvs.def > CVs
@@ -80,7 +80,7 @@ The format of `cvs.def` is much simpler compared to the resulting `CVs` file. Ea
 
 For `PPLANE`, the first atom defines the point, while the remaining three atoms define the plane. Note that it is a signed distance, so the sign of the resulting CV depends on the order of atoms defining the plane.
 
-#### *guess* file
+### *guess* file
 The `guess` file contains the initial guess for the MFEP. it is defined as a set of points in the CV space with the following format:
 ```
 <number of guess points>
@@ -109,7 +109,7 @@ Here we only take the last 10 frames out of 50 to calculate the averages. The fo
 ```
 Note that although the system is symmetric, there are slight differences between the values in the reactants and products due to statistical error. However, the differences are small enough to be ignored.
 
-#### *STRING* file
+### *STRING* file
 The last file that has to be generated manually is the `STRING` file. It is the main configuration file and its presence instructs sander to actually perform the ASM calculation. There are lots of parameters that can be defined in the `STRING` file, however, in the vast majority of cases the default values work well, so nothing has to be specified. In this example, all the parameters will be left at their default values, the only two things that have to be provided are the output directory for the results of the calculation and the path to the `guess` file:
 ```
 $STRINGSETUP
@@ -178,7 +178,7 @@ String optimization stage
 -------------------------
 After the preparation is done, the string optimization stage starts. That when the string starts to move towards the MFEP and both the force constants and node positions along the path get optimized. Multiple files are generated during this stage and described below.
 
-#### *convergence.dat*
+### *convergence.dat*
 
 This is arguably the most important file - it tracks the convergence of the string optimization by measuring the RMSD between the current state of the string and the entire history of the string states. The first column of the file is the timestep and the second is the RMSD value. When the RMSD plateaus it indicates that the calculation reached convergence and the string now fluctuates around the MFEP:
 
@@ -188,7 +188,7 @@ gnuplot> plot 'convergence.dat' w l
 IMAGE
 
 
-#### *STOP_STRING*
+### *STOP_STRING*
 The `STOP_STRING` file is not created by the code, but should be created by the user to indicate that the string had converged at it is time for the code to switch to the Umbrella Sampling stage. The file contains only two lines: the optimization step at which the user assumes that the string had already converged and another step, that defines the window used to take averages of the string node positions in the CV space and all the parameters needed to define the pathCV and run Umbrella Sampling simulations. For example, from the plot above it seems that the string had already converged after 10000 steps of optimization. However, we want to wait until step 15000 to calculate the necessary averages over the last 5000 steps. Then, `STOP_STRING` will look as follows:
 ```
 10000
@@ -198,7 +198,7 @@ Once the `STOP_STRING` is created, the code will recognize it, wait until step 1
 
 In principle, just knowing how to interpret `convergence.dat` and create `STOP_STRING` is sufficient to use the method as a "black box". As described in the next section, once the simulation enters the Umbrella Sampling stage, there is nothing the user has to do - the Umbrella Sampling along the pathCV will be performed and the PMFs will be calculated fully automatically. However, when something goes wrong (and it certainly will) the rest of the files generated during the preparation stage provide lots of valuable information for debugging, so it is helpful to know how to interpret them. 
 
-#### **.string*
+### **.string*
 The `*.string` files contain the state of the string at a given step of the optimization. By default these are written every 100 steps, it can be changed with `output_period` parameter in `STRING`. The format is straightforward: each column corresponds to a CV and each row to a string node. For example, the file `0.string` (which is written even before the string optimization starts) contains the initial guess, which is just a linear interpolation between the two points provided in the `guess` file:
 ```
 gnuplot> plot for [i=1:4] '0.string' u i w l title ''.i
@@ -206,10 +206,10 @@ gnuplot> plot for [i=1:4] '0.string' u i w l title ''.i
 
 IMAGE
 
-#### *\#.dat*
+### *\#.dat*
 These files contain the values of the CVs in each node during the string optimization. So, the number in column 3 of line 100 in file `10.dat` is the value of the third CV (the carbon hybridization) in string node 10 at step number 100. Note that the steps are counted from the beginning of the preparation stage, not from the beginning of the whole simulation. The remaining columns contain technical information that can be ignored.
 
-#### *\*.PMF*
+### *\*.PMF*
 Contain approximate PMFs calculated, by default, using the last 2 ps of sampling and are printed every 2 ps. The frequency can be changed by specifying the desired number of steps with `buffer_size` parameter in the `STRING` file (the sampling from all the nodes is stored in a buffer and after writing out the PMF the buffer is emptied, hence the name of the parameter). Note that these PMFs are **VERY**  approximate and should only be used to get a qualitative idea of whether the calculation behaves as expected. The contents of all the columns are described in the file header. For instance, the values of the RC are given in column 1, while the PMF is found in column 6:
 ```
 gnuplot> plot '10000.PMF' u 1:6 w l
@@ -217,10 +217,10 @@ gnuplot> plot '10000.PMF' u 1:6 w l
 
 IMAGE
 
-#### **_CV.PMF*
+### **_CV.PMF*
 Contain the decomposition of the PMF in CV components according to Eq. 33 in [ASM paper](https://pubs.acs.org/doi/10.1021/acs.jpca.7b10842). Since the decomposition introduces additional uncertainty, this information is even noisier than the PMFs and is only kept for consistency with the *_final_CV.PMF files that are written out during Umbrella Sampling (see below).
 
-#### *force_constants.dat* and *node_positions.dat*
+### *force_constants.dat* and *node_positions.dat*
 These files contain the time evolution of the force constants and positions of the string nodes along the MFEP (rescaled to [0:1] interval), respectively. While not as important as `convergence.dat`, this information can also be used to judge, whether the simulation converged or to diagnose any convergence problems. For instance, weird behavior of node positions (rapid changes, several nodes located in the same place) indicates that too few string nodes are used, while wild jumps in the force constants might be a symptom of some structural instability. Since the example used here is very simple, both the force constants and node positions change smoothly:
 
 ```
@@ -236,7 +236,7 @@ IMAGE
 
 It takes some practice to tell a "good" plot from a problematic one, so for beginner users just looking at `convergence.dat` to decide when to stop the string optimization should be enough.
 
-#### **.REX*
+### **.REX*
 All the `*.REX` files contain information about the replica exchange procedure:
 - `exchanges.REX`: list of all exchanges. The first column is the step, the second - index of the first of the nodes involved in the exchange. So, if there is a line in `exchanges.REX` containing `2000   12`, then at step 2000 of string optimization, there was an exchange between nodes 12 and 13. This file is rarely used.
 - `histogram.REX`: each line of this file contains the total number of exchanges in the corresponding node. For example, line 10 contains the number of exchanges between nodes 10 and 11. It is preferable to have at least several exchanges for each of the nodes. If there are zeroes in this file, it might mean that too few nodes were used.
@@ -257,19 +257,19 @@ Once the number of string optimization steps reaches the second value provided i
 All the files generated during Umbrella Sampling contain "final" in the filename. For instance, all the replica exchange related files have the same meaning as the ones described above, but are called `*_final.REX`. Other files have some differences compared to their counterparts from string optimization and are described below. 
 
 
-#### *0_final.string* and *0_final_CV.string*
+### *0_final.string* and *0_final_CV.string*
 These are the only `*.string` files written out during the US. Both contain the averaged string that was used to define the path CV. The `0_final.string` also contains some technical information used to [restart the US calculation](#restart-the-pmf-calculation-for-a-converged-string). The contents of `0_final_CV.string` are also slightly different: the first column gives the value of the path CV, that corresponds to each US window, while the rest of the columns are values of the CVs, as in the regular `*.string` files described above. This file is therefore useful to relate the PMF with the regions in the CV space. For example, the CV values from the window sampling the maximum of the PMF approximately describe the TS geometry.
 
-#### *final_parameters.dat*
+### *final_parameters.dat*
 Contains the positions and force constants of the US windows. Used to [restart US calculation](#restart-the-pmf-calculation-for-a-converged-string).
 
-#### **_final.PMF*
+### **_final.PMF*
 The most important files - contain the actual PMF along the pathCV. In contrast to the PMF files generated during the string optimization, these are integrated using the entire sampling obtained during the US stage. So, the file `10000_final.PMF` contains the PMF calculated based on 10000 steps of US. The more sampling is acquired, the smaller is the statistical error, which is given in the column 7. The rule of thumb is to stop finish the calculation when the error at the TS is < 1 kcal/mol.
 
-#### **_CV_final.PMF*
+### **_CV_final.PMF*
 Same as for the string optimization, these files contain the CV-decomposition of the PMF. The interpretation of the values can be found in the [ASM paper]().
 
-#### *\#_final.dat*
+### *\#_final.dat*
 As the `#.dat` files from string optimization, the `#_final.dat` files contain values of the CVs in the corresponding window, but they also contain the values of the path CVs - *s* (the progress along the path, **the** reaction coordinate) and *z* (distance from the path) as well as the parameters of the US window. The format is the following:
 ```
 <force constant along s> <position along s> <force constant along z> 0.00000E+00
@@ -283,21 +283,21 @@ Analysis
 The most important structural features impacting the reaction (C-Cl distances and CH3 hybridization) are included in the CV list, they are available in the `#_final.dat` files together with the path CV values and can be analysed directly. However, if we, for example, would like to measure the average chlorine-chlorine distance at the TS, it is not so easy: in contrast to a simple RC, like the antisymmetric transfer coordinate, the path CV can not be trivially calculated from a structure in VMD or PyMOL. Also, if we just want to look at how the structures in the vicinity of the TS look like, it can not be easily done: because of the replica exchange, the MD trajectories written out by sander are not in one-to-one correspondence with the string nodes and US windows. To solve these issues, several postprocessing scripts are available and described below. All the scripts can be found [here]().
 
 
-#### reorder_trj.py
+### reorder_trj.py
 Takes the MD trajectories from ASM calculation and reorders the frames so that the new trajectories do correspond to the string nodes during the string optimization and US windows during the US stage. It must be executed from the working directory (the one containing the `STRING` file) with a single argument - the system topology: 
 ```bash
 $ reorder_trj.py parm7
 ```
 The script automatically locates the results directory and used the information from `plot.REX` and `plot_final.REX` to rearrange the frames into new trajectories. The results are written into `reorder_trj_results` directory. Separate trajectories are generated for string optimization (`string` subdirectory) and US (`pmf` subdirectory) stages.
 
-#### get_pmf_cv_values.py
+### get_pmf_cv_values.py
 Once the trajectories are reordered, it is possible to extract the values of the path CV for each frame from the `#_final.dat` files. This is done by running [get_pmf_cv_values.py]() script from the working directory without any arguments:
 ```bash
 $ get_pmf_cv_values.py
 ```
 It will create a set of `#.dat` files in `reorder_trj_results/pmf` with path CV values for each frame of the reordered trajectories. The format of `#.dat` files is exactly as of `#_final.dat`, so it includes *s* CV, *z* CV, and the CVs used for string optimization.
 
-#### get_ts_frames.py
+### get_ts_frames.py
 A common task is to extract and analyze only the frames corresponding to the TS of the reaction. While it can be done by using the converged PMF and the results from [get_pmf_cv_values.py](), it can be done much faster with [get_ts_frames.py]() script. It also runs from the working directory and requires two arguments: the topology and the PMF file which will be used to determine the position of the TS. For example:
 ```bash
 $ get_ts_frames.py parm7 --pmf results/20000_final.PMF
@@ -306,14 +306,14 @@ The script will generate a new trajectory named `ts.nc` by default (can be chang
 
 Other features
 --------------
-#### Keep the system close to the path during the US stage
+### Keep the system close to the path during the US stage
 By default, when switching from the string optimization to the US, the bias that restrains the movement of the system in the directions orthogonal to the path is removed. It is done because it is assumed that when the string reaches the MFEP, the system will not be able to drift away from it because of the underlying free energy landscape. However, it is often the case that the MFEP is not well defined, so the simulation still can explore regions far from it. It might cause numerical instabilities and artifacts in the PMF. In this case, the orthogonal bias should be kept in place by changing the `remove_z_bias` parameter (set to `.true.` by default in the `STRING` file:
 ```
 remove_z_bias = .false.
 ```
 By doing so, the harmonic bias over *z* path CV (the one that measures the distance from the path) is added during the US optimization.
 
-#### Restart the PMF calculation for a converged string
+### Restart the PMF calculation for a converged string
 When the string takes unexpectedly long to converge, it might happen that there is not much time left to acquire enough sampling during the US stage (e.g. due to job time limits on the cluster). In this case, it is possible to take advantage of the converged string and start a new jb directly with US stage, skipping the preparation and string optimization. To do so:
 1. Add `only_PMF = .true.`  to the `STRING` file
 2. Copy the files `final_parameters.dat` and `0_final.string` from the old results directory to the new **working** directory (the one with the `STRING` file).
