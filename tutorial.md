@@ -60,7 +60,7 @@ It is also beneficial (but not mandatory) to have short unbiased MD trajectories
 Apart from the system topology and the structures, ASM calculation requires multiple input files that define all the aspects of the calculation (definitions of the CVs, initial guess etc.). The file format is not very user friendly, but for the most error-prone parts, there are scripts available that make the file generation easier.
  
 #### *CVs* file
-The `CVs` file, as the name suggests, contains the definitions of the CVs used. The easiest way to generate it is to use the [generate_cvs.py]() script:
+The `CVs` file, as the name suggests, contains the definitions of the CVs used. The easiest way to generate it is to use the [generate_cvs.py](utils/generate_cvs.py) script:
 ```bash
 $ generate_cvs.py <topology> cvs.def > CVs
 ```
