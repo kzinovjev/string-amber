@@ -26,9 +26,9 @@ Table of contents
   - [*_CV_final.PMF](#_cv_finalpmf)  
   - [\#_final.dat](#_finaldat)
 - [Analysis](#analysis)
-  - [reorder_trj.py](#reorder_trj.py)
-  - [get_pmf_cv_values.py](#get_pmf_cv_values.py)
-  - [get_ts_frames.py](#get_ts_frames.py)
+  - [reorder_trj.py](#reorder_trjpy)
+  - [get_pmf_cv_values.py](#get_pmf_cv_valuespy)
+  - [get_ts_frames.py](#get_ts_framespy)
 - [Other features](#other-features)
   - [Keep the system close to the path during the US stage](#keep-the-system-close-to-the-path-during-the-us-stage)
   - [Restart the PMF calculation for a converged string](#restart-the-pmf-calculation-for-a-converged-string)
@@ -280,24 +280,24 @@ The first line contains the force constants and RC values that define the US bia
 
 Analysis
 --------
-The most important structural features impacting the reaction (C-Cl distances and CH3 hybridization) are included in the CV list, they are available in the `#_final.dat` files together with the path CV values and can be analysed directly. However, if we, for example, would like to measure the average chlorine-chlorine distance at the TS, it is not so easy: in contrast to a simple RC, like the antisymmetric transfer coordinate, the path CV can not be trivially calculated from a structure in VMD or PyMOL. Also, if we just want to look at how the structures in the vicinity of the TS look like, it can not be easily done: because of the replica exchange, the MD trajectories written out by sander are not in one-to-one correspondence with the string nodes and US windows. To solve these issues, several postprocessing scripts are available and described below.
+The most important structural features impacting the reaction (C-Cl distances and CH3 hybridization) are included in the CV list, they are available in the `#_final.dat` files together with the path CV values and can be analysed directly. However, if we, for example, would like to measure the average chlorine-chlorine distance at the TS, it is not so easy: in contrast to a simple RC, like the antisymmetric transfer coordinate, the path CV can not be trivially calculated from a structure in VMD or PyMOL. Also, if we just want to look at how the structures in the vicinity of the TS look like, it can not be easily done: because of the replica exchange, the MD trajectories written out by sander are not in one-to-one correspondence with the string nodes and US windows. To solve these issues, several postprocessing scripts are available and described below. All the scripts can be found [here]().
 
 
-####[reorder_trj.py]()
+#### reorder_trj.py
 Takes the MD trajectories from ASM calculation and reorders the frames so that the new trajectories do correspond to the string nodes during the string optimization and US windows during the US stage. It must be executed from the working directory (the one containing the `STRING` file) with a single argument - the system topology: 
 ```bash
 $ reorder_trj.py parm7
 ```
 The script automatically locates the results directory and used the information from `plot.REX` and `plot_final.REX` to rearrange the frames into new trajectories. The results are written into `reorder_trj_results` directory. Separate trajectories are generated for string optimization (`string` subdirectory) and US (`pmf` subdirectory) stages.
 
-####[get_pmf_cv_values.py]()
-Once the trajectories are reordered, it is possible to extract the values of the path CV for each frame from the `#_final.dat` files. This is done by running  [get_pmf_cv_values.py]() script from the working directory without any arguments:
+#### get_pmf_cv_values.py
+Once the trajectories are reordered, it is possible to extract the values of the path CV for each frame from the `#_final.dat` files. This is done by running [get_pmf_cv_values.py]() script from the working directory without any arguments:
 ```bash
 $ get_pmf_cv_values.py
 ```
 It will create a set of `#.dat` files in `reorder_trj_results/pmf` with path CV values for each frame of the reordered trajectories. The format of `#.dat` files is exactly as of `#_final.dat`, so it includes *s* CV, *z* CV, and the CVs used for string optimization.
 
-####[get_ts_frames.py]()
+#### get_ts_frames.py
 A common task is to extract and analyze only the frames corresponding to the TS of the reaction. While it can be done by using the converged PMF and the results from [get_pmf_cv_values.py](), it can be done much faster with [get_ts_frames.py]() script. It also runs from the working directory and requires two arguments: the topology and the PMF file which will be used to determine the position of the TS. For example:
 ```bash
 $ get_ts_frames.py parm7 --pmf results/20000_final.PMF
