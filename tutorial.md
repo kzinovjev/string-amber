@@ -11,24 +11,24 @@ Table of contents
 - [Running the job](#running-the-job)
 - [String preparation stage](#string-preparation-stage)
 - [String optimization stage](#string-optimization-stage)
-  - [convergence.dat](#convergence)
+  - [convergence.dat](#convergencedat)
   - [STOP_STRING](#stop_string)
   - [*.string](#string)
   - [\#.dat](#dat)
   - [*.PMF](#pmf)
   - [*_CV.PMF](#_cvpmf)
-  - [force_constants.dat and node_positions.dat](force-node-dat)
+  - [force_constants.dat and node_positions.dat](#force_constantsdat-and-node_positionsdat)
   - [*.REX](#rex)
 - [Umbrella Sampling stage](#umbrella-sampling-stage)
-  - [0_final.string and 0_final_CV.string](#final-string)
+  - [0_final.string and 0_final_CV.string](#0_finalstring-and-0_final_cvstring)
   - [final_parameters.dat](#final_parametersdat)
   - [*_final.PMF](#_finalpmf)
   - [*_CV_final.PMF](#_cv_finalpmf)  
   - [\#_final.dat](#_finaldat)
 - [Analysis](#analysis)
-  - [reorder_trj.py](#reorder_trjpy)
-  - [get_pmf_cv_values.py](#get_pmf_cv_valuespy)
-  - [get_ts_frames.py](#get_ts_framespy)
+  - [reorder_trj.py](#reorder_trj.py)
+  - [get_pmf_cv_values.py](#get_pmf_cv_values.py)
+  - [get_ts_frames.py](#get_ts_frames.py)
 - [Other features](#other-features)
   - [Keep the system close to the path during the US stage](#keep-the-system-close-to-the-path-during-the-us-stage)
   - [Restart the PMF calculation for a converged string](#restart-the-pmf-calculation-for-a-converged-string)
@@ -325,8 +325,6 @@ echo "-O -rem 0 -i $i.in -o $i.out -c init/$i.ncrst $crd -r $i.ncrst -x $i.nc -i
 ...
 ```
 When running the job prepared that way, no `STOP_STRING` file is needed - it will immediately start generating all the `*final*` files.
-
-<a name="final-remarks"/>
 
 Final remarks
 -------------
