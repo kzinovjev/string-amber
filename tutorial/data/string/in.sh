@@ -25,6 +25,6 @@ for i in `seq 1 $nodes`; do
     crd=$PROD
   fi
   
-  # write out the sander command for node $i to the groupfile
+  # write out the sander arguments for node $i to the groupfile
   echo "-O -rem 0 -i $i.in -o $i.out -c $crd -r $i.ncrst -x $i.nc -inf $i.mdinfo -p $PARM" >> string.groupfile
 done
