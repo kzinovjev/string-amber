@@ -1,6 +1,6 @@
 # Adaptive string method tutorial
 
-Table of contents
+### Table of contents
 
 - [Introduction](#introduction)
 - [Prerequisites](#prerequisites)
