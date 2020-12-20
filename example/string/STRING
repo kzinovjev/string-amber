@@ -1,5 +1,0 @@
-$STRINGSETUP
-dir = "results/"
-guess_file = "guess"
-$END
-
