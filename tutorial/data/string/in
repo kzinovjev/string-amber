@@ -1,0 +1,22 @@
+Production
+ &cntrl
+  nstlim=1020000,  ! Number of MD steps. Set to a huge value to make sure the job doesn't stop prematurely
+  dt=0.001,        ! Timestep
+  tempi=300.0,     ! Initial temperature
+  temp0=300.0,     ! Thermostat temperature
+  ntpr=100,        ! How often to print energy information
+  ntwx=500,        ! How often to write the frames to the trajectory files
+  cut=8.0,         ! Nonbonded cutoff
+  ntt=3,           ! Langevin dynamics
+  gamma_ln=2.0,    ! Collision frequency for Langevin dynamics
+  nmropt=1,        ! Use restraints
+  ifqnt=1,         ! Do QM/MM
+  ig=__SEED__,        ! Random seed (to be replaced by in.sh)
+ /
+ &qmmm
+  qmmask=':1-2',   ! QM subsystem (only CH3Cl and Cl)
+  qmcharge=-1,     ! Total charge of QM subsystem
+  qm_theory='AM1'  ! QM Hamiltonian
+ /
+&wt type='END' /
+DISANG=restr 

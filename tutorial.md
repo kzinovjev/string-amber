@@ -39,9 +39,9 @@ Introduction
 
 This tutorial explains how to set up, run, and analyze an ASM calculation for the reaction between chloromethane and chlorine ion:
 
-IMAGE
+![mechanism](tutorial/img/mechanism.png)
 
-This is one of the examples from the [original ASM paper](https://pubs.acs.org/doi/10.1021/acs.jpca.7b10842). The system is small enough for the entire protocol to finish in about 15 minutes on a single cluster node (20-30 CPUs). Alternatively, a complete setup with all the input and output files can be found [here](). 
+This is one of the examples from the [original ASM paper](https://pubs.acs.org/doi/10.1021/acs.jpca.7b10842). The system is small enough for the entire protocol to finish in about 15 minutes on a single cluster node (20-30 CPUs). Alternatively, a complete calculation with all the input files and results [is provided](tutorial/data/ch3cl.tgz). 
 
 The string will be optimized in the space of 4 collective variables (CVs): two carbon-chlorine (C-Cl) distances, the hybridization of the carbon atom (measured as the signed point-plane distance between the carbon and the plane formed by the hydrogens), and Cl-C-Cl angle. The latter is not really needed to trace the reaction process (and was not included in the calculation presented in the paper) but is included here to illustrate that the method works well when mixing the CVs of very different nature (distances and angles).
 
@@ -52,15 +52,15 @@ To run the preparation and analysis scripts make sure you have access to Python3
 Preparation
 -----------
 
-To run any ASM calculation one needs the [amber topology of the system]() (inpcrd/parm7 file) and the [reactants]() and [products]() structures equilibrated using the same potential that will be used during the ASM calculation. It is also important for the potential to be exactly the same during the relaxation of reactants and products. For instance, in this tutorial, semiparabolic restraints on C-Cl distances were used to keep the system from dissociating. The [restraint definition]() is identical in both relaxations and will be kept the same for the ASM calculation. 
+To run any ASM calculation one needs the [amber topology of the system](tutorial/data/system/ch3cl.parm7)(inpcrd/parm7 file) and the [reactants](tutorial/data/system/react.ncrst) and [products](tutorial/data/system/prod.ncrst) structures equilibrated using the same potential that will be used during the ASM calculation. It is also important for the potential to be exactly the same during the relaxation of reactants and products. For instance, in this tutorial, semiparabolic restraints on C-Cl distances were used to keep the system from dissociating. The [restraint definition](tutorial/data/string/restr) is identical in both relaxations and will be kept the same for the ASM calculation. 
  
-It is also beneficial (but not mandatory) to have short unbiased MD trajectories of [reactants]() and [products]() - these can be used to obtain the positions of the minimum free energy path (MFEP) endpoints and thus accelerate the string convergence. This approach is used here, as explained in the next section.
+It is also beneficial (but not mandatory) to have short unbiased MD trajectories of [reactants](tutorial/data/system/react.nc) and [products](tutorial/data/system/prod.nc) - these can be used to obtain the positions of the minimum free energy path (MFEP) endpoints and thus accelerate the string convergence. This approach is used here, as explained in the next section.
  
  
 Apart from the system topology and the structures, ASM calculation requires multiple input files that define all the aspects of the calculation (definitions of the CVs, initial guess etc.). The file format is not very user friendly, but for the most error-prone parts, there are scripts available that make the file generation easier.
  
 ### *CVs* file
-The `CVs` file, as the name suggests, contains the definitions of the CVs used. The easiest way to generate it is to use the [generate_cvs.py](utils/generate_cvs.py) script:
+The `CVs` file, as the name suggests, contains the definitions of the CVs used. It can be generated with the [generate_cvs.py](utils/generate_cvs.py) script:
 ```bash
 $ generate_cvs.py <topology> cvs.def > CVs
 ```
@@ -95,7 +95,7 @@ $ trj_to_cvs.py CVs <trajectory> <topology> <first frame> <last frame>
  ```
 It calculates the values of the CVs (defined in the `CVs` file) for each frame of the provided trajectory within the specified range. If the first and the last frames are not specified, the entire trajectory is used. If only the first frame is specified, the frames until the end of the trajectory will be parsed. After printing the values for individual frames, the script also prints the average values of the CVs over the specified range. These values are the ones that should be used in the `guess` file. 
  
-So, the entire `guess` file can be constructed from the trajectories provided [here]() as follows:
+So, the entire `guess` file can be constructed from the reactants and products trajectories as follows:
  ```bash
 $ echo 2 > guess
 $ trj_to_cvs.py CVs react.nc parm7 41 | tail -n 1 >> guess
@@ -121,7 +121,7 @@ It always makes sense to put all the ASM output files in a separate directory, b
 
 Running the job
 ---------------
-The ASM code relies on multisander for job parallelization - instead of running a single MD simulation, a set of independent simulations are performed, with sander command-line arguments for each one being specified in the so-called "groupfile". This allows specifying different initial structures and output files for each simulation. Here the first half of the nodes will be initiated from reactants and the rest will be initiated from the products. Also, it is useful to provide separate sander input files for each node, with random number seed (*ig* parameter) explicitly specified. In case of any problems, this allows rerunning exactly the same simulation, but, for example, writing out the trajectory frames more often. Both input files and the groupfile can be generated using the following script ([in.sh]()):   
+The ASM code relies on multisander for job parallelization - instead of running a single MD simulation, a set of independent simulations are performed, with sander command-line arguments for each one being specified in the so-called "groupfile". This allows specifying different initial structures and output files for each simulation. Here the first half of the nodes will be initiated from reactants and the rest will be initiated from the products. Also, it is useful to provide separate sander input files for each node, with random number seed (*ig* parameter) explicitly specified. In case of any problems, this allows rerunning exactly the same simulation, but, for example, writing out the trajectory frames more often. Both input files and the groupfile can be generated using the following script ([in.sh](tutorial/data/string/in.sh)):   
 ```bash
 #!/bin/bash
 
@@ -132,8 +132,8 @@ then
 fi
 
 PARM=../system/ch3cl.parm7  # path to topology file
-REACT=../system/react.rst   # path to reactants structure
-PROD=../system/prod.rst     # path to products structure
+REACT=../system/react.ncrst # path to reactants structure
+PROD=../system/prod.ncrst   # path to products structure
 SEED=12345                  # Some random number 
 
 # Number of string nodes is provided as command line argument
@@ -168,7 +168,7 @@ Here -ng specify the number of groups (string nodes). While in the example below
 ```bash
 export I_MPI_COMPATIBILITY=3
 ```
-Apart from that, ASM calculations are in no way different from any other MPI job. For convenience, example scripts for [PBS]() and [SLURM]() are also provided.
+Apart from that, ASM calculations are in no way different from any other MPI job. For convenience, example scripts for [PBS](tutorial/data/string/launch_pbs.sh) and [SLURM](tutorial/data/string/launch_slurm.sh) are also provided.
 
 String preparation stage
 ------------------------
@@ -185,7 +185,7 @@ This is arguably the most important file - it tracks the convergence of the stri
 ```
 gnuplot> plot 'convergence.dat' w l
 ```
-IMAGE
+![convergence](tutorial/img/convergence.png)
 
 
 ### *STOP_STRING*
@@ -199,12 +199,14 @@ Once the `STOP_STRING` is created, the code will recognize it, wait until step 1
 In principle, just knowing how to interpret `convergence.dat` and create `STOP_STRING` is sufficient to use the method as a "black box". As described in the next section, once the simulation enters the Umbrella Sampling stage, there is nothing the user has to do - the Umbrella Sampling along the pathCV will be performed and the PMFs will be calculated fully automatically. However, when something goes wrong (and it certainly will) the rest of the files generated during the preparation stage provide lots of valuable information for debugging, so it is helpful to know how to interpret them. 
 
 ### **.string*
-The `*.string` files contain the state of the string at a given step of the optimization. By default these are written every 100 steps, it can be changed with `output_period` parameter in `STRING`. The format is straightforward: each column corresponds to a CV and each row to a string node. For example, the file `0.string` (which is written even before the string optimization starts) contains the initial guess, which is just a linear interpolation between the two points provided in the `guess` file:
+The `*.string` files contain the state of the string at a given step of the optimization. By default these are written every 100 steps, it can be changed with `output_period` parameter in `STRING`. The format is straightforward: each column corresponds to a CV and each row to a string node. The initial guess (`0.string`, which is written even before the string optimization starts), is just a linear interpolation between the two points provided in the `guess` file, while in the subsequent `*.string` files the path gets closer towards the MFEP:
 ```
-gnuplot> plot for [i=1:4] '0.string' u i w l title ''.i
-``` 
+gnuplot> set xlabel 'C-Cl_1'
+gnuplot> set ylabel 'C-Cl_2'
+gnuplot> plot for [i=0:5000:1000] ''.i.'.string' u 1:2 w l lw 2 title 'step '.i
+```
 
-IMAGE
+![convergence](tutorial/img/string.png)
 
 ### *\#.dat*
 These files contain the values of the CVs in each node during the string optimization. So, the number in column 3 of line 100 in file `10.dat` is the value of the third CV (the carbon hybridization) in string node 10 at step number 100. Note that the steps are counted from the beginning of the preparation stage, not from the beginning of the whole simulation. The remaining columns contain technical information that can be ignored.
@@ -215,7 +217,7 @@ Contain approximate PMFs calculated, by default, using the last 2 ps of sampling
 gnuplot> plot '10000.PMF' u 1:6 w l
 ```
 
-IMAGE
+![convergence](tutorial/img/pmf.png)
 
 ### **_CV.PMF*
 Contain the decomposition of the PMF in CV components according to Eq. 33 in [ASM paper](https://pubs.acs.org/doi/10.1021/acs.jpca.7b10842). Since the decomposition introduces additional uncertainty, this information is even noisier than the PMFs and is only kept for consistency with the *_final_CV.PMF files that are written out during Umbrella Sampling (see below).
@@ -226,13 +228,13 @@ These files contain the time evolution of the force constants and positions of t
 ```
 gnuplot> plot for [i=1:24] 'force_constants.dat' u i w l title ''
 ```
-IMAGE
+![force constants](tutorial/img/force_constants.png)
 
 ```
 gnuplot> plot for [i=1:24] 'node_positions.dat' u i w l title ''
 ```
 
-IMAGE
+![node positions](tutorial/img/node_positions.png)
 
 It takes some practice to tell a "good" plot from a problematic one, so for beginner users just looking at `convergence.dat` to decide when to stop the string optimization should be enough.
 
@@ -246,7 +248,7 @@ All the `*.REX` files contain information about the replica exchange procedure:
 gnuplot> plot for [i=2:25] 'plot.REX' u 1:i w l lw 2 title ''
 ```
 
-IMAGE
+![rex](tutorial/img/rex.png)
 
 The plot shows how each trajectory "walks" through different string nodes.
 
@@ -264,10 +266,15 @@ These are the only `*.string` files written out during the US. Both contain the 
 Contains the positions and force constants of the US windows. Used to [restart US calculation](#restart-the-pmf-calculation-for-a-converged-string).
 
 ### **_final.PMF*
-The most important files - contain the actual PMF along the pathCV. In contrast to the PMF files generated during the string optimization, these are integrated using the entire sampling obtained during the US stage. So, the file `10000_final.PMF` contains the PMF calculated based on 10000 steps of US. The more sampling is acquired, the smaller is the statistical error, which is given in the column 7. The rule of thumb is to stop finish the calculation when the error at the TS is < 1 kcal/mol.
+The most important files - contain the actual PMF along the pathCV. In contrast to the PMF files generated during the string optimization, these are integrated using the entire sampling obtained during the US stage. So, the file `20000_final.PMF` contains the PMF calculated based on 20000 steps of US. The more sampling is acquired, the smaller is the statistical error, which is given in the column 7. The rule of thumb is to stop finish the calculation when the error at the TS is < 1 kcal/mol.
+```
+gnuplot> plot '20000_final.PMF' u 1:6 w l lw 2, '20000_final.PMF' every 2 u 1:6:7 w yerrorbars title ''
+```
+
+![pmf final](tutorial/img/pmf_final.png)
 
 ### **_CV_final.PMF*
-Same as for the string optimization, these files contain the CV-decomposition of the PMF. The interpretation of the values can be found in the [ASM paper]().
+Same as for the string optimization, these files contain the CV-decomposition of the PMF. The interpretation of the values can be found in the [ASM paper](https://pubs.acs.org/doi/10.1021/acs.jpca.7b10842).
 
 ### *\#_final.dat*
 As the `#.dat` files from string optimization, the `#_final.dat` files contain values of the CVs in the corresponding window, but they also contain the values of the path CVs - *s* (the progress along the path, **the** reaction coordinate) and *z* (distance from the path) as well as the parameters of the US window. The format is the following:
@@ -280,7 +287,7 @@ The first line contains the force constants and RC values that define the US bia
 
 Analysis
 --------
-The most important structural features impacting the reaction (C-Cl distances and CH3 hybridization) are included in the CV list, they are available in the `#_final.dat` files together with the path CV values and can be analysed directly. However, if we, for example, would like to measure the average chlorine-chlorine distance at the TS, it is not so easy: in contrast to a simple RC, like the antisymmetric transfer coordinate, the path CV can not be trivially calculated from a structure in VMD or PyMOL. Also, if we just want to look at how the structures in the vicinity of the TS look like, it can not be easily done: because of the replica exchange, the MD trajectories written out by sander are not in one-to-one correspondence with the string nodes and US windows. To solve these issues, several postprocessing scripts are available and described below. All the scripts can be found [here]().
+The most important structural features impacting the reaction (C-Cl distances and CH3 hybridization) are included in the CV list, they are available in the `#_final.dat` files together with the path CV values and can be analysed directly. However, if we, for example, would like to measure the average chlorine-chlorine distance at the TS, it is not so easy: in contrast to a simple RC, like the antisymmetric transfer coordinate, the path CV can not be trivially calculated from a structure in VMD or PyMOL. Also, if we just want to look at how the structures in the vicinity of the TS look like, it can not be easily done: because of the replica exchange, the MD trajectories written out by sander are not in one-to-one correspondence with the string nodes and US windows. To solve these issues, several postprocessing scripts are available and described below. All the scripts can be found [here](utils).
 
 
 ### reorder_trj.py
@@ -291,14 +298,14 @@ $ reorder_trj.py parm7
 The script automatically locates the results directory and used the information from `plot.REX` and `plot_final.REX` to rearrange the frames into new trajectories. The results are written into `reorder_trj_results` directory. Separate trajectories are generated for string optimization (`string` subdirectory) and US (`pmf` subdirectory) stages.
 
 ### get_pmf_cv_values.py
-Once the trajectories are reordered, it is possible to extract the values of the path CV for each frame from the `#_final.dat` files. This is done by running [get_pmf_cv_values.py]() script from the working directory without any arguments:
+Once the trajectories are reordered, it is possible to extract the values of the path CV for each frame from the `#_final.dat` files. This is done by running [get_pmf_cv_values.py](utils/get_pmf_cv_values.py) script from the working directory without any arguments:
 ```bash
 $ get_pmf_cv_values.py
 ```
 It will create a set of `#.dat` files in `reorder_trj_results/pmf` with path CV values for each frame of the reordered trajectories. The format of `#.dat` files is exactly as of `#_final.dat`, so it includes *s* CV, *z* CV, and the CVs used for string optimization.
 
 ### get_ts_frames.py
-A common task is to extract and analyze only the frames corresponding to the TS of the reaction. While it can be done by using the converged PMF and the results from [get_pmf_cv_values.py](), it can be done much faster with [get_ts_frames.py]() script. It also runs from the working directory and requires two arguments: the topology and the PMF file which will be used to determine the position of the TS. For example:
+A common task is to extract and analyze only the frames corresponding to the TS of the reaction. While it can be done by using the converged PMF and the results from [get_pmf_cv_values.py](utils/get_pmf_cv_values.py), it can be done much faster with [get_ts_frames.py](utils/get_ts_frames.py) script. It also runs from the working directory and requires two arguments: the topology and the PMF file which will be used to determine the position of the TS. For example:
 ```bash
 $ get_ts_frames.py parm7 --pmf results/20000_final.PMF
 ```
