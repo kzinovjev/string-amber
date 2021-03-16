@@ -1,5 +1,5 @@
 # string-amber
-Adaptive string method implementation in sander (AmberTools18)
+Adaptive string method implementation in sander (AmberTools19+)
 
 If you use this software in your work, please cite:
 https://doi.org/10.1021/acs.jpca.7b10842
