@@ -32,6 +32,7 @@ set(SANDER_COMMON_SOURCE resamplekin.F90 boost-gamma-distribution.cpp les.F90 st
     nfe-cv-PAIR_DIHEDRAL.F90 nfe-cv-PATTERN_DIHEDRAL.F90 nfe-cv-DF_COM_DISTANCE.F90
     nfe-smd-hooks.F90 nfe-umbrella.F90 nfe-utils.F90 nfe-value.F90 mt19937.F90
     pol_gauss.F90 quench.F90 external.F90 relaxmd.F90 music_module.F90 constante.F90
+    CV_module.F90 multiCV_module.F90 splines_utilities.F90 string_utilities.F90 CV_utilities.F90 string_method.F90
     rattle.F90 md_scheme.F90)
 
 set(EMIL_SOURCE emil.F90 mdin_emil_dat.F90)

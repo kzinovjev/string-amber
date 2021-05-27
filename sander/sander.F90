@@ -156,6 +156,11 @@ subroutine sander()
 
   use commandline_module, only: cpein_specified
 
+  ! ASM
+#ifdef MPI
+  use string_method, only : string_define, string_defined
+#endif
+
   implicit none
 
   logical belly, erstop
@@ -255,6 +260,10 @@ subroutine sander()
   call mpi_barrier(mpi_comm_world, ier)
 #endif
 
+  ! ASM
+#ifdef MPI
+  inquire(file = "STRING", exist=string_defined)
+#endif
 
   ! Here begin the executable statements.
   call Trace_enter( 'sander' )
@@ -1545,6 +1554,11 @@ subroutine sander()
     if (ntp > 0 .and. barostat == 2) then
       call mcbar_setup(ig)
     end if
+
+    ! ASM
+#ifdef MPI
+    if (string_defined) call string_define(x(lcrd:lcrd+natom*3-1))
+#endif
 
     ! Input flag imin determines the type of calculation: MD, minimization, ...
     call Trace_integer( 'At label imincase; imin is ', imin )

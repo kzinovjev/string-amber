@@ -135,6 +135,11 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   use music_module, only : music_force
   use external_module, only : pme_external, gb_external
 
+  ! ASM
+#ifdef MPI
+  use string_method, only : string_calc
+#endif
+
   implicit none
 
   integer, intent(in) :: nstep
@@ -235,6 +240,9 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
 
   ! MuSiC
   _REAL_ :: music_vdisp, music_vang, music_vgauss, music_spohr89
+
+  ! ASM
+  real*8 :: string_energy
 
   ect = 0.0
 
@@ -639,6 +647,11 @@ else
 
    ! End of non-bonded computations
    call timer_stop(TIME_NONBON)
+
+   ! ASM
+#ifdef MPI
+   if (sanderrank == 0) call string_calc(x(1:natom*3), f(1:natom*3), string_energy)
+#endif
 
    ! Calculate other contributions to the forces
    !   - When igb==10, a Poisson-Boltzmann solvent is active.  All nonbonds
@@ -1147,6 +1160,11 @@ else
               pot%dihedral + pot%vdw_14 + pot%elec_14 + pot%hbond + &
               pot%constraint + pot%rism + pot%ct
   pot%tot = pot%tot + pot%polar + pot%surf + pot%scf + pot%disp
+
+  ! ASM
+#ifdef MPI
+  pot%tot = pot%tot + string_energy
+#endif
 
   !Charmm related
   pot%tot = pot%tot + pot%angle_ub + pot%imp + pot%cmap
