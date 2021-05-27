@@ -21,11 +21,11 @@
 !   ener:           Energy with components (see the state_rec type in the
 !                   state.F90 module)
 !   vir:            Virial (four element _REAL_ vector)
-!   fs:             
+!   fs:
 !   rborn:          The Generalized Born radii (they will be recalculated
 !                   within this subroutine)
 !   reff:           The effective Born radii (recalculated in this subroutine)
-!   onereff:        The inverse effective Born radii, 1.0/reff 
+!   onereff:        The inverse effective Born radii, 1.0/reff
 !   qsetup:         Flag to activate setup of multiple components, .false. on
 !                   first call
 !   do_list_update: flag to have the non-bonded list updated (returns .TRUE. or
@@ -36,7 +36,7 @@
 subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
                  onereff, qsetup, do_list_update, nstep)
 
-#ifndef DISABLE_NFE
+#if !defined(DISABLE_NFE)
   use nfe_sander_hooks, only: nfe_on_force => on_force
   use nfe_sander_proxy, only: infe
 #endif /* DISABLE_NFE */
@@ -94,6 +94,10 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   use amoeba_interface, only: AM_VAL_eval, AM_NonBond_eval
   use amoeba_mdin, only : iamoeba,am_nbead
 
+  ! pGM additions
+  use pol_gauss_interface, only: pGM_NonBond_eval
+  use pol_gauss_mdin, only : ipgm
+
   use amd_mod
   use scaledMD_mod
   use nbips, only: ips, eexips
@@ -108,6 +112,9 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
                              do_lrt, f_scratch, lrt_solute_sasa
   use cns_xref
   use xray_interface_module, only: xray_get_derivative, xray_active
+#ifdef USE_ISCALE
+  use xray_globals_module, only: atom_bfactor
+#endif
 
   ! CHARMM Force Field Support
   use charmm_mod, only: charmm_active, charmm_calc_impropers, &
@@ -126,10 +133,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   use abfqmmm_module
   use les_data, only: temp0les
   use music_module, only : music_force
-
-#ifdef MPI
-  use string_method, only : string_calc
-#endif
+  use external_module, only : pme_external, gb_external
 
   implicit none
 
@@ -195,6 +199,9 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   ! Local
   _REAL_                     :: ene(30)    !Used locally ONLY
   type(potential_energy_rec) :: pot        !Used locally ONLY
+#ifdef USE_ISCALE
+  logical, save :: first=.true.
+#endif
 
 #if defined(LES) && defined(MPI)
   _REAL_  :: nrg_bead(nbead)
@@ -219,7 +226,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   _REAL_ epolar, aveper, aveind, avetot, emtot, dipiter, dipole_temp
   integer, save :: newbalance
 
-  ! Aceelerated MD variables
+  ! Accelerated MD variables
   _REAL_ amd_totdih
 
   ! SEBOMD Gradient test variables
@@ -228,8 +235,6 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
 
   ! MuSiC
   _REAL_ :: music_vdisp, music_vang, music_vgauss, music_spohr89
-
-  real*8 :: string_energy
 
   ect = 0.0
 
@@ -353,7 +358,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
                             xx(grad2tmp))
   end if
 
-#ifndef DISABLE_NFE
+#if !defined(DISABLE_NFE)
   if (infe == 1) then
     call nfe_on_force(x, f, enfe)
   end if
@@ -374,6 +379,38 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
                 nimprp, nphb, natom, natom, ntypes, nres, rad, wel, radhb, &
                 welhb, rwell, tgtrmsd, temp0les, -1, 'WEIT')
   end if
+
+! If calling an External library
+if (iextpot .gt. 0) then
+#ifdef MPI
+  if (sanderrank .eq. 0) then
+#endif /* MPI */
+    if (igb == 0) then
+      call pme_external(x, f, ener%pot%tot)
+    else
+      call gb_external(x, f, ener%pot%tot)
+    endif
+    if (nmropt > 0) then
+      call nmrcal(x, f, ih(m04), ih(m02), ix(i02), xx(lwinv), enmr, devdis, &
+                  devang, devtor, devplpt, devpln, devgendis, temp0, tautp, &
+                  cut, xx(lnmr01), ix(inmr02), xx(l95), 31, 6, rk, tk, pk, cn1, &
+                  cn2, asol, bsol, xx(l15), numbnd, numang, nptra-nimprp, &
+                  nimprp, nphb, natom, natom, ntypes, nres, rad, wel, radhb, &
+                  welhb, rwell, tgtrmsd, temp0les, -1, 'CALC')
+    end if
+    if (natc > 0 .and. ntr==1) then   ! ntr=1 (positional restraints)
+      call xconst(natc, entr, ix(icnstrgp), x, f, xx(lcrdr), xx(l60))
+    end if
+    ener%pot%constraint = + sum(enmr(1:6)) + entr + enfe
+    ener%pot%tot = ener%pot%tot + sum(enmr(1:6)) + entr + enfe
+#ifdef MPI
+  endif
+
+  call mpi_bcast(f, 3*natom, MPI_DOUBLE_PRECISION, 0, commsander, ierr)
+#endif /* MPI */
+! If not calling an External library
+else
+
   epolar = 0.d0
 
   ! EGB: if Generalized Born is in effect (there is a GB solvent,
@@ -493,6 +530,11 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
     if (iamoeba == 1) then
       call AM_NonBond_eval(natom, x, f, vir, xx, ipairs, evdw, eelt, epolar, &
                            enb14, ee14, diprms, dipiter)
+    else if (ipgm == 1) then
+       call pGM_NonBond_eval(natom, x, f, vir, xx, ipairs, &
+                             ntypes, ix(i04), ix(i06), cn1, cn2, & ! R. Luo: amber vdw
+                             evdw, eelt, epolar, enb14, ee14, &
+                             diprms, dipiter)
     else
       if (induced > 0) then
         call handle_induced(x, natom, ix(i04), ix(i06), xx(l15), cn1, cn2, &
@@ -598,10 +640,6 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
    ! End of non-bonded computations
    call timer_stop(TIME_NONBON)
 
-#ifdef MPI
-   if (sanderrank == 0) call string_calc(x(1:natom*3), f(1:natom*3), string_energy)
-#endif
-
    ! Calculate other contributions to the forces
    !   - When igb==10, a Poisson-Boltzmann solvent is active.  All nonbonds
    !     are done in the subroutine pb_force, and all nonpolar interactions
@@ -703,7 +741,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   ! Angles without H
   if (ntf < 5) then
     call angl(ntheta+ngper, ix(i32), ix(i34), ix(i36), ix(i38), x, f, &
-              ene(9)) 
+              ene(9))
     pot%angle = pot%angle + ene(9)
 #ifdef MPI
 #  ifdef LES
@@ -722,17 +760,17 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   ! use it in the regular ephi function.  Fix this later, as
   ! AMD dihedral weight does NOT support AMOEBA
   if (iamd .gt. 1) then
-    ! Dihedrals with H 
+    ! Dihedrals with H
     if (ntf < 6) then
       call ephi_ene_amd(nphih, ix(i40), ix(i42), ix(i44), ix(i46), ix(i48), &
                         x, amd_dih_noH)
     endif
-    ! Dihedrals without H 
+    ! Dihedrals without H
     if (ntf < 7) then
       call ephi_ene_amd(nphia+ndper, ix(i50), ix(i52), ix(i54), ix(i56), &
                         ix(i58), x, amd_dih_H)
     endif
-#ifdef MPI 
+#ifdef MPI
     temp_amd_totdih = amd_dih_noH + amd_dih_H
 #  ifdef USE_MPI_IN_PLACE
     call mpi_allreduce(MPI_IN_PLACE, temp_amd_totdih, 1, &
@@ -796,7 +834,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
 #endif
 
     ! Do CHARMM impropers, if the CHARMM force field is in use
-    ! Note: CHARMM does not distinguish between impropers with and 
+    ! Note: CHARMM does not distinguish between impropers with and
     ! without hydrogen.  Hence, it is not possible to strictly
     ! conform to the ntf options of sander. Here CHARMM impropers
     ! are calculated as long as ntf < 7 - so CHARMM impropers are
@@ -973,7 +1011,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
     else
       call apbs_force(natom, x, f, pot%vdw, eelt, enpol)
     end if
-    pot%pb   = eelt 
+    pot%pb   = eelt
     pot%surf = enpol
     call timer_stop(TIME_PBFORCE)
 
@@ -1076,7 +1114,21 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
 
   ! Built-in X-ray target function and gradient
   xray_e = 0.d0
-  if (xray_active) call xray_get_derivative(x,f,xray_e)
+  if( xray_active ) then
+#ifdef USE_ISCALE
+     if (first) then
+        ! set coordinates to current bfactors:
+        x(3*natom+1:4*natom) = atom_bfactor(1:natom)
+        first = .false.
+     else
+        ! get current bfactors from the end of the coordinate array:
+        atom_bfactor(1:natom) = x(3*natom+1:4*natom)
+     endif
+     call xray_get_derivative(x,f,xray_e,dB=f(3*natom+1))
+#else
+     call xray_get_derivative(x,f,xray_e)
+#endif
+  endif
 
     ! Calculate the total energy and group the components
 #ifndef LES
@@ -1093,11 +1145,11 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   pot%polar = epolar
   pot%tot   = pot%vdw + pot%elec + pot%gb + pot%pb + pot%bond + pot%angle + &
               pot%dihedral + pot%vdw_14 + pot%elec_14 + pot%hbond + &
-              pot%constraint + pot%rism + pot%ct + string_energy
+              pot%constraint + pot%rism + pot%ct
   pot%tot = pot%tot + pot%polar + pot%surf + pot%scf + pot%disp
 
   !Charmm related
-  pot%tot = pot%tot + pot%angle_ub + pot%imp + pot%cmap 
+  pot%tot = pot%tot + pot%angle_ub + pot%imp + pot%cmap
 
   ! MuSiC - GAL17 force field
   pot%tot = pot%tot + music_vdisp + music_vang + music_vgauss + music_spohr89
@@ -1132,7 +1184,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
                                      pot%amd_boost, f, temp0)
     pot%tot = pot%tot + pot%amd_boost
   end if
-   
+
   ! scaledMD: scale the total potential and forces by the
   ! factor scaledMD_lambda.  Added by Romelia Salomon
   if (scaledMD .gt. 0) then
@@ -1145,7 +1197,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   ener%aveper = aveper
   ener%aveind = aveind
   ener%avetot = avetot
-   
+
   ! This is now historical; MJW Feb 2010
   !
   !    Here is a summary of how the ene array is used.  For parallel runs,
@@ -1206,7 +1258,6 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   ! If a bellymask is being used, set the belly atom forces to zero.
   if (belly) call bellyf(natom,ix(ibellygp),f)
 
-
   ! Interface to EVB
 #ifdef MPI
 #  ifdef LES
@@ -1237,7 +1288,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
     endif
 #  endif /* MPI */
 #else /* NOT LES below */
-   ener = ener/nbead 
+   ener = ener/nbead
    f(1:natom*3) = f(1:natom*3)/nbead
    vir(1:3) = vir(1:3)/nbead
    atvir = atvir/nbead
@@ -1256,6 +1307,9 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
       ener%pot%dvdl = dvdl
     end if
   end if
+
+! Ending if of External library
+end if
 
 #ifdef MPI
   ! Nudged Elastic Band (NEB) is only supported with MPI
@@ -1296,7 +1350,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
       call mpi_reduce(ener, totener, state_rec_len, MPI_DOUBLE_PRECISION, &
                       MPI_SUM, 0, commmaster, ierr)
     end if
-  end if 
+  end if
   ! End NEB segment
 #endif /*MPI*/
 
@@ -1304,7 +1358,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   if (charmm_active) then
     if (do_charmm_dump_gold == 1) then
       call charmm_dump_gold(f, natom, ener)
-    endif 
+    endif
   end if
 
 #ifdef MPI
@@ -1326,5 +1380,3 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   return
 
 end subroutine force
-
-

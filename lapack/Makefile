@@ -4,7 +4,8 @@ SRCDIR=..
 VPATH=
 
 .f.o:
-	$(FC) -c $(FOPTFLAGS) $(FFLAGS) -o $@ $<
+	@echo "[LAPACK]  FC $<"
+	$(VB)$(FC) -c $(FOPTFLAGS) $(FFLAGS) -o $@ $<
 
 OBJS= dsyev.o dsygv.o dlansy.o dsytrd.o dorgtr.o dsteqr.o \
 	dsterf.o dlascl.o dlamch.o ilaenv.o dlassq.o dsytd2.o \
@@ -43,16 +44,15 @@ OBJS= dsyev.o dsygv.o dlansy.o dsytrd.o dorgtr.o dsteqr.o \
 	dormhr.o dtrexc.o dlaexc.o dlasy2.o \
 	iparmq.o iladlc.o iladlr.o \
 	dlatrs.o drscl.o dlantr.o dgecon.o dgeequ.o dlaqge.o dgesvx.o \
-	chla_transtype.o dla_wwaddw.o dla_geamv.o dla_lin_berr.o \
-	ilatrans.o dla_gercond.o ilaprec.o dla_gerfsx_extended.o\
-	dla_rpvgrw.o dgerfsx.o dlascl2.o dgeequb.o dpotri.o
+	chla_transtype.o ilatrans.o ilaprec.o dlascl2.o dgeequb.o
 
 install: $(LIBDIR)/liblapack.a
 
 $(LIBDIR)/liblapack.a: $(OBJS)
-	$(AR) liblapack.a $(OBJS)
-	$(RANLIB) liblapack.a
-	mv liblapack.a $(LIBDIR)
+	@echo "[LAPACK]  AR $@"
+	$(VB)$(AR) liblapack.a $(OBJS) > /dev/null
+	$(VB)$(RANLIB) liblapack.a
+	$(VB)mv liblapack.a $(LIBDIR)
 
 skip:
 	@echo "skipping compilation of LAPACK"
@@ -64,4 +64,5 @@ clean:
 	-/bin/rm -f *.o
 
 dlamch.o:  dlamch.f
-	$(FC) -c $(FNOOPTFLAGS) $(FFLAGS) -o $@ $<
+	@echo "[LAPACK]  FC $<"
+	$(VB)$(FC) -c $(FNOOPTFLAGS) $(FFLAGS) -o $@ $<

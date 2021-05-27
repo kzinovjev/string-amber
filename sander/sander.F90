@@ -10,21 +10,25 @@
 !------------------------------------------------------------------------------
 subroutine sander()
 
+  use constants, only : INV_AMBER_ELECTROSTATIC
+  use lmod_driver
+  use trace
+
   use state
-#ifndef DISABLE_NFE
+#if !defined(DISABLE_NFE)
   use nfe_sander_hooks, only : &
       nfe_on_sander_init => on_sander_init, &
       nfe_on_sander_exit => on_sander_exit
   use nfe_sander_proxy, only : infe
 #endif /* DISABLE_NFE */
 
-  use lmod_driver
-  use constants, only : INV_AMBER_ELECTROSTATIC
-
   ! The main qmmm_struct contains all the QMMM variables and arrays
   use qmmm_read_and_alloc, only : read_qmmm_nm_and_alloc
   use qmmm_vsolv_module, only: qmmm_vsolv_store_parameters, new
   use qm2_extern_module, only: qm2_extern_finalize
+#ifdef QUICK
+  use quick_module, only: quick_finalize
+#endif
 #ifdef MPI
   use qmmm_module, only : qmmm_nml, qmmm_struct, deallocate_qmmm, qmmm_mpi, &
                           qm2_struct, qmmm_vsolv, qm2_params, qmmm_mpi_setup
@@ -68,8 +72,11 @@ subroutine sander()
   use amoeba_mdin, only : beeman_integrator, iamoeba, am_nbead
   use amoeba_interface, only : AMOEBA_deallocate, AMOEBA_readparm
 
+  use pol_gauss_mdin, only : ipgm
+  use pol_gauss_interface, only : POL_GAUSS_readparm, POL_GAUSS_deallocate
+
 #ifdef RISMSANDER
-  use sander_rism_interface, only: rism_setparam, rism_init, rism_finalize 
+  use sander_rism_interface, only: rism_setparam, rism_init, rism_finalize
 #endif
 
 #ifdef PUPIL_SUPPORT
@@ -80,7 +87,7 @@ subroutine sander()
   use apbs
 #endif /* APBS */
 
-  use xray_interface_module, only: xray_init, xray_read_parm, xray_fini
+  use xray_interface_module, only: xray_active, xray_init, xray_read_parm, xray_fini
 
 #ifdef MPI /* SOFT CORE */
   use softcore, only: setup_sc, cleanup_sc, ifsc, extra_atoms, sc_sync_x, &
@@ -99,12 +106,13 @@ subroutine sander()
   use evb_pimd, only: evb_pimd_init
 #  endif /* LES */
   ! Replica Exchange Molecular Dynamics
-  use remd, only : rem, mdloop, remd1d_setup, remd_exchange, &
+  use remd, only : rem, mdloop, remd1d_setup, remd_exchange, reservoir_remd_exchange, &
                    remd_cleanup, hremd_exchange, ph_remd_exchange, e_remd_exchange, &
-                   multid_remd_setup, multid_remd_exchange
-#ifdef VERBOSE_REMD
+                   multid_remd_setup, multid_remd_exchange, setup_pv_correction, &
+                   rremd, stagid
+#  ifdef VERBOSE_REMD
   use remd, only : repnum
-#endif
+#  endif
   use bintraj, only: setup_remd_indices
 #else
 #  define rem 0
@@ -131,6 +139,7 @@ subroutine sander()
   use file_io_dat
   use constantph, only: cnstph_finalize
   use constante, only: cnste_finalize
+  use external_module, only : external_cleanup
   use barostats, only: mcbar_setup
   use random, only: amrset
 
@@ -145,9 +154,7 @@ subroutine sander()
 
   use music_module, only: read_music_nml, print_music_settings
 
-#ifdef MPI
-  use string_method, only : string_define, string_defined
-#endif
+  use commandline_module, only: cpein_specified
 
   implicit none
 
@@ -155,14 +162,13 @@ subroutine sander()
   integer ier,ncalls,xmin_iter
   logical ok
   logical newstyle
-#  include "nmr.h"
-#  include "box.h"
-#  include "../include/md.h"
-#  include "extra.h"
-#  include "tgtmd.h"
-#  include "multitmd.h"
-
-#  include "parallel.h"
+#include "nmr.h"
+#include "box.h"
+#include "../include/md.h"
+#include "extra.h"
+#include "tgtmd.h"
+#include "multitmd.h"
+#include "parallel.h"
 
   ! AMBER/MPI
 #ifdef MPI
@@ -183,15 +189,15 @@ subroutine sander()
 #endif /* MPI */
   ! End of declarations and inclues for AMBER/MPI
 
-#  include "ew_pme_recip.h"
-#  include "ew_frc.h"
-#  include "ew_erfc_spline.h"
+#include "ew_pme_recip.h"
+#include "ew_frc.h"
+#include "ew_erfc_spline.h"
 #ifdef MPI
 #  include "ew_parallel.h"
 #endif
-#  include "ew_mpole.h"
-#  include "ew_cntrl.h"
-#  include "def_time.h"
+#include "ew_mpole.h"
+#include "ew_cntrl.h"
+#include "def_time.h"
 
   type(state_rec) ::  ene
   integer native,nr3,nr
@@ -226,7 +232,6 @@ subroutine sander()
   logical :: do_list_update=.false.
 #endif
   _REAL_ :: box_center(3)
-
 #ifdef MPI_DEBUGGER
   integer, volatile :: release_debug
 
@@ -250,12 +255,13 @@ subroutine sander()
   call mpi_barrier(mpi_comm_world, ier)
 #endif
 
-#ifdef MPI
-    inquire(file = "STRING", exist=string_defined)
-#endif
 
-  ! Here begin the executable statements.  Start by initializing the cpu
-  ! timer. Needed for machines where returned cpu times are relative.
+  ! Here begin the executable statements.
+  call Trace_enter( 'sander' )
+  ! Uncomment this to compare master vs nonmaster code paths:
+  ! call Trace_set_output_focus( 1 )
+  ! Start by initializing the cpu timer.
+  ! Needed for machines where returned cpu times are relative.
   call date_and_time( initial_date, initial_time )
   call wallclock( time0 )
   call init_timers()
@@ -326,11 +332,11 @@ subroutine sander()
   call timer_start(TIME_TOTAL)
   call abfqmmm_init_param()
 
-  ! abfqmmm master do loop: this will finally end on or about line 1710.
   ! In abfQM/MM simulations the QM region changes dynamically, which
   ! requires re-initialization of related data structures.  This is
   ! implemented by running multiple MD simulations in sequence.  For
   ! regular MM or QM/MM MD simulations, we go through this loop only once.
+  abfqmmmmasterdoloop: &
   do while ((abfqmmm_param%qmstep <= abfqmmm_param%maxqmstep) .or. &
             (abfqmmm_param%maxqmstep == 0 .and. abfqmmm_param%system == 2))
     masterwork: if (master) then
@@ -406,7 +412,8 @@ subroutine sander()
 
         ! ntf and ntc get reset if this is an amoeba prmtop
         call AMOEBA_readparm(8, ntf, ntc, natom, x(lmass))
-        call xray_read_parm(8,6)
+        if ( ipgm /= 0 ) call POL_GAUSS_readparm(8, natom)
+        if ( xray_active ) call xray_read_parm(8,6)
       end if
 
       call sebomd_setup
@@ -433,7 +440,7 @@ subroutine sander()
           else
 #ifdef MPI
             call getcor(nr, x(lcrd), x(lvel), x(lforce), ntx, &
-                        box, irest, t, temp0, .FALSE., solvph, solve)
+                        box, irest, t, temp0, .FALSE., solvph, solve, stagid)
 #else
             call getcor(nr, x(lcrd), x(lvel), x(lforce), ntx, &
                         box, irest, t, .FALSE.)
@@ -634,7 +641,7 @@ subroutine sander()
 #ifdef LES
 #  ifdef MPI
         call getcor(nr, x(lcrd), x(lvel), x(lforce), ntx, box, irest, t, &
-                    temp0les, .TRUE., solvph, solve)
+                    temp0les, .TRUE., solvph, solve, stagid)
 #  else
         call getcor(nr, x(lcrd), x(lvel), x(lforce), ntx, box, irest, t, &
                     .TRUE.)
@@ -646,7 +653,7 @@ subroutine sander()
         else
 #  ifdef MPI
           call getcor(nr, x(lcrd), x(lvel), x(lforce), ntx, box, irest, &
-                      t, temp0, .TRUE., solvph, solve)
+                      t, temp0, .TRUE., solvph, solve, stagid)
 #  else
           call getcor(nr, x(lcrd), x(lvel), x(lforce), ntx, box, irest, t, &
                       .TRUE.)
@@ -917,9 +924,9 @@ subroutine sander()
     end if masterwork
     ! End of master process setup
 
-#  if defined(RISMSANDER)
+#if defined(RISMSANDER)
     call rism_init(commsander)
-#  endif /* RISMSANDER */
+#endif /* RISMSANDER */
 
 #ifdef MPI
     call mpi_barrier(commsander,ier)
@@ -930,7 +937,9 @@ subroutine sander()
     ! running in parallel within sander are supported. The value
     ! of mpi_orig determines which approach is used.
     ! This is turned on when minimization (imin .ne. 0) is requested,
-    ! and is otherwise off.
+    ! and is otherwise off.  When it is on the master and the other
+    ! processes follow substantially different code paths, and in that
+    ! case collective MPI operations must not be used in those code paths.
     !
     ! When running the mpi_orig case, a variable notdone is now
     ! set by the master and determines when to exit the force()
@@ -1016,7 +1025,9 @@ subroutine sander()
       call stack_setup()
     end if
     call mpi_bcast(plumed, 1, MPI_INTEGER, 0, commsander, ier)
-    call mpi_bcast(plumedfile, MAX_FN_LEN, MPI_CHARACTER, 0, commsander, ier)
+    if (plumed .eq. 1) then
+      call mpi_bcast(plumedfile, MAX_FN_LEN, MPI_CHARACTER, 0, commsander, ier)
+    endif
 
     ! GMS: Broadcast parameters from module 'molecule'
     call mpi_bcast(mol_info%natom, 1, mpi_integer, 0, commsander, ier)
@@ -1024,7 +1035,7 @@ subroutine sander()
     call mpi_barrier(commsander, ier)
 
     ! Allocate memory on the non-master nodes
-    if (.not. master) then
+    notmasterallocation: if (.not. master) then
 
       if (abfqmmm_param%qmstep .ne. 1 .or. abfqmmm_param%system .ne. 1) then
         deallocate(x, ix, ipairs, ih)
@@ -1062,8 +1073,10 @@ subroutine sander()
           call allocate_real_decomp(npdec*npdec)
         end if
       end if
-    end if
+    end if notmasterallocation
     ! End memory allocation on non-master nodes
+
+    call Trace_note( 'After end if notmasterallocation' )
 
     ! Broadcast arrays from module 'molecule'
     call mpi_bcast(mol_info%natom_res, mol_info%nres, MPI_INTEGER, &
@@ -1267,14 +1280,20 @@ subroutine sander()
       call init_sebomd_arrays(natom)
     end if
 
-    ! Use old parallelism for energy minimization
+    ! Use old parallelism for energy minimization.
+    ! This is turned on when minimization (imin .ne. 0) is requested,
+    ! and is otherwise off.  When it is on the master and the other
+    ! processes follow substantially different code paths, and in that
+    ! case collective MPI operations must not be used
     if (imin .ne. 0) then
       mpi_orig = .true.
       notdone = 1
     else
       mpi_orig = .false.
     end if
-    if (mpi_orig .and. .not. master) then
+    call Trace_logical( 'mpi_orig is ', mpi_orig )
+
+    notmastermpi_orig: if (mpi_orig .and. .not. master) then
 
       ! All nodes only do the force calculations.  Minimization
       ! so only master gets past the loop below
@@ -1318,7 +1337,7 @@ subroutine sander()
                                              .true.)
         end if
       end if
-      if (igb == 7 .or. igb == 8) then
+      if (igb == 7 .or. igb == 8 .or. hybridgb == 7 .or. hybridgb == 8) then
 
         ! x(l97) is rborn(), the Generalized Born radii
         call igb7_init(natom, x(l97))
@@ -1338,7 +1357,9 @@ subroutine sander()
 
       ! Deallocate and return
       goto 999
-    end if
+    end if notmastermpi_orig
+
+    call Trace_note( 'After end if notmastermpi_orig' )
 
     ! Report the parallel configuration
     if (master) then
@@ -1449,7 +1470,7 @@ subroutine sander()
     end if
 
     ! Now do the dynamics or minimization.
-    if (igb == 7 .or. igb == 8 ) then
+    if (igb == 7 .or. igb == 8 .or. hybridgb == 7 .or. hybridgb == 8) then
       call igb7_init(natom, x(l97)) !x(l97) is rborn()
 
       ! Add igb = 8 here
@@ -1525,23 +1546,20 @@ subroutine sander()
       call mcbar_setup(ig)
     end if
 
-#ifdef MPI
-    if (string_defined) call string_define(x(lcrd:lcrd+natom*3-1))
-#endif
-
     ! Input flag imin determines the type of calculation: MD, minimization, ...
-    select case (imin)
+    call Trace_integer( 'At label imincase; imin is ', imin )
+    imincase: select case (imin)
       case (0)
 
         ! Dynamics:
         call timer_start(TIME_RUNMD)
 
-        ! Set up Accelerated Molecular Dynamics 
+        ! Set up Accelerated Molecular Dynamics
         if (iamd .gt. 0) then
           call amd_setup(ntwx)
         endif
 
-        ! Set up scaledMD 
+        ! Set up scaledMD
         if (scaledMD .gt. 0) then
           call scaledMD_setup(ntwx)
         endif
@@ -1578,8 +1596,9 @@ subroutine sander()
 
             ! 1D REMD. Set up temptable, open remlog, etc.
             call remd1d_setup(numexchg, hybridgb, numwatkeep, &
-                              temp0, mxvar, natom, ig, solvph, solve)
+                        temp0, mxvar, natom, ig, solvph, solve, stagid)
           end if
+          call setup_pv_correction(6, ntp, sanderrank)
 
           ! Now set up REMD indices for traj/restart writes. Only do this on
           ! master since only master handles writes.
@@ -1592,13 +1611,19 @@ subroutine sander()
         do mdloop = 0, loop
 
           ! REMD exchange handling.  mdloop == 0 is just used
-          ! to get initial energies for the first exchange. 
+          ! to get initial energies for the first exchange.
           if (rem < 0 .and. mdloop > 0) then
             call multid_remd_exchange(x, ix, ih, ipairs, qsetup, &
-                                      do_list_update, temp0, solvph, solve)
+                                      do_list_update, temp0, solvph, solve, &
+                                      reservoir_exchange_step)
           else if ((rem == 1 .or. rem == 2) .and. mdloop > 0) then
-            call remd_exchange(1, rem, x(lcrd), x(lvel), x(lmass), &
+             if(rremd>0) then
+                call reservoir_remd_exchange(1, rem, x(lcrd), x(lvel), x(lmass), &
+                               nr3, natom, nr, temp0, reservoir_exchange_step)
+             else
+                call remd_exchange(1, rem, x(lcrd), x(lvel), x(lmass), &
                                nr3, natom, nr, temp0)
+             end if
           else if (rem == 3 .and. mdloop > 0) then
             call hremd_exchange(1, x, ix, ih, ipairs, qsetup, do_list_update)
 
@@ -1607,7 +1632,7 @@ subroutine sander()
             ! as a real step. This is OK, since the counter got
             ! incremented at the _very_ end of nmrcal, so we haven't already
             ! printed an unwanted value (JMS 2/12)
-            if (nmropt .ne. 0) then 
+            if (nmropt .ne. 0) then
               call nmrdcp
             end if
           else if (rem == 4 .and. mdloop > 0) then
@@ -1617,18 +1642,18 @@ subroutine sander()
           end if
           ! End of block for replica exchange handling
 
-#ifdef VERBOSE_REMD
+#  ifdef VERBOSE_REMD
           if (rem > 0 .and. mdloop .eq. 0 .and. master) then
-            write (6,'(a,i4)') "REMD: Getting initial energy for replica ", &
+            write (6,'(a,i4)') "| REMD: Getting initial energy for replica ", &
                                repnum
           end if
-#endif /* VERBOSE_REMD */
+#  endif /* VERBOSE_REMD */
 #endif  /* MPI */
 
-#ifndef DISABLE_NFE
-#ifdef MPI
+#if !defined(DISABLE_NFE)
+#  ifdef MPI
           call mpi_bcast(infe, 1, mpi_integer, 0, commsander, ier)
-#endif
+#  endif
           if (abfqmmm_param%qmstep == 1 .and. abfqmmm_param%system == 1 .and. &
               infe == 1) then
             call nfe_on_sander_init(ih, x(lmass), x(lcrd), rem)
@@ -1645,8 +1670,8 @@ subroutine sander()
                        x(l50), x(l95), ix(i70), x(l75), erstop, qsetup)
           end if
           ! End branch for Beeman integrator
-   
-#ifndef DISABLE_NFE
+
+#if !defined(DISABLE_NFE)
           if (abfqmmm_param%qmstep == 1 .and. abfqmmm_param%system == 1 .and. &
               infe == 1) then
             call nfe_on_sander_exit()
@@ -1680,7 +1705,8 @@ subroutine sander()
       case (1)
 
         ! Minimization: input flag ntmin determines the method of minimization
-        select case (ntmin)
+        call Trace_integer( 'At label ntmincase; ntmin is ', ntmin )
+        ntmincase: select case (ntmin)
           case (0, 1, 2)
             call runmin(x, ix, ih, ipairs, x(lcrd), x(lforce), x(lvel), &
                         ix(iibh), ix(ijbh), x(l50), x(lwinv), ix(ibellygp), &
@@ -1732,7 +1758,7 @@ subroutine sander()
 
             ! invalid ntmin: input validation occurs in mdread.f
             ASSERT(.false.)
-        end select
+        end select ntmincase
       case (5)
 
         ! Modified for reading trajectories (trajene option)
@@ -1749,7 +1775,7 @@ subroutine sander()
         ! Invalid imin: input validation should be transferred to mdread.f
         write(6,'(/2x,a,i3,a)') 'Error: Invalid IMIN (', imin, ').'
         ASSERT(.false.)
-    end select
+    end select imincase
 
 #ifdef MPI /* SOFT CORE */
     if (master) then
@@ -1759,7 +1785,7 @@ subroutine sander()
     end if
 #endif
 
-    ! Finish up EMAP 
+    ! Finish up EMAP
     if (temap) then
       call qemap()
     end if
@@ -1790,9 +1816,7 @@ subroutine sander()
       end if
       call abfqmmm_next_step()
     end if
-  end do
-  ! End of abfqmmm master do loop (starts WAY up near the top,
-  ! at or about line 317)
+  end do abfqmmmmasterdoloop
 
   if (abfqmmm_param%abfqmmm == 1) then
     deallocate(abfqmmm_param%id, stat=ier)
@@ -1859,13 +1883,18 @@ subroutine sander()
     end if
 #endif
 
-    ! Close out constant pH work    
-    if (icnstph .ne. 0) then
+    ! Close out external library
+    if (iextpot .ne. 0) then
+      call external_cleanup
+    end if
+
+    ! Close out constant pH work
+    if (icnstph .ne. 0 .or. (icnste .ne. 0 .and. cpein_specified)) then
       call cnstph_finalize
     end if
 
-    ! Close out constant Redox potential work    
-    if (icnste .ne. 0) then
+    ! Close out constant Redox potential work
+    if (icnste .ne. 0 .and. .not. cpein_specified) then
       call cnste_finalize
     end if
 
@@ -1903,14 +1932,22 @@ subroutine sander()
   call amflsh(6)
 
 #ifdef MPI
-   ! --- dynamic memory deallocation:
-   999 continue 
+  999 continue
+  ! end if notmastermpi_orig
+  ! This is the effective end of the notmastermpi_orig if statement
+  ! because the last statement inside that if is a jump here.
 #endif
 
+  ! --- dynamic memory deallocation:
   if (qmmm_nml%ifqnt .and. qmmm_nml%qmtheory%EXTERN .and. master) then
     call qm2_extern_finalize()
   endif
-  if (qmmm_nml%ifqnt .and. .not. qmmm_struct%qm_mm_first_call) then   
+#ifdef QUICK
+  if (qmmm_nml%ifqnt .and. qmmm_nml%qmtheory%ISQUICK) then
+    call quick_finalize()
+  endif
+#endif
+  if (qmmm_nml%ifqnt .and. .not. qmmm_struct%qm_mm_first_call) then
 
     ! If first_call is still true, this thread never really
     ! called the QMMM routine. E.g. more threads than PIMD replicates
@@ -1950,7 +1987,7 @@ subroutine sander()
 #endif
 
   if (ifcr .ne. 0) then
-    call cr_cleanup() 
+    call cr_cleanup()
   end if
   if (sebomd_obj%do_sebomd) then
     if (master) then
@@ -1969,7 +2006,7 @@ subroutine sander()
       hybridgb > 0 .or. icnstph > 1 .or. icnste > 1) then
     call deallocate_gb()
   end if
-  if (master) then  
+  if (master) then
     if (igb == 10 .or. ipb .ne. 0) then
       call pb_free()
     end if
@@ -1986,6 +2023,7 @@ subroutine sander()
     call deallocate_m1m2m3()
   end if
   call AMOEBA_deallocate
+  call POL_GAUSS_deallocate
   call deallocate_molecule()
 
   if (abfqmmm_param%abfqmmm .ne. 1) then
@@ -1996,6 +2034,7 @@ subroutine sander()
       call deallocate_cmap_arrays()
     end if
   end if
+  call Trace_exit( 'sander' )
   if (master .and. mdout .ne. 'stdout') then
     close(6)
   end if
@@ -2092,4 +2131,3 @@ subroutine esp(natom, x, mom_ind)
   return
 
 end subroutine esp
-

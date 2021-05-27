@@ -31,6 +31,8 @@ module qm2_extern_module
   use qm2_extern_orc_module   , only: get_orc_forces
   use qm2_extern_nw_module    , only: get_nw_forces
   use qm2_extern_mrcc_module  , only: get_mrcc_forces
+  use qm2_extern_quick_module , only: get_quick_forces
+  use qm2_extern_reaxff_puremd_module , only: get_reaxff_puremd_forces
 #ifdef MPI
   use qm2_extern_genmpi_module, only: get_genmpi_forces
 #endif
@@ -49,16 +51,12 @@ module qm2_extern_module
   contains
 
   subroutine qm2_extern_get_qm_forces(nstep, nqmatoms, qmcoords, qmtypes, &
-       nclatoms, clcoords, escf, dxyzqm, dxyzcl)
+       qmcharges, nclatoms, clcoords, mmtypes, escf, dxyzqm, dxyzcl)
 
     use neb_vars, only: ineb
     use pimd_vars, only: ipimd
     use full_pimd_vars, only: mybeadid
     use file_io_dat
-#ifdef MPI
-    use string_method, only : string_defined, minimize
-#endif
-
 #if defined(MPI)
     use remd, only : rem
 #   include "parallel.h"
@@ -69,8 +67,10 @@ module qm2_extern_module
     integer, intent(in) :: nqmatoms             ! Number QM of atoms
     _REAL_,  intent(in) :: qmcoords(3,nqmatoms) ! QM atom coordinates
     integer, intent(in) :: qmtypes(nqmatoms)    ! QM atom types (nuclear charge in au)
+    _REAL_,  intent(inout) :: qmcharges(nqmatoms) ! QM charges
     integer, intent(in) :: nclatoms             ! Number of MM atoms
     _REAL_,  intent(in) :: clcoords(4,nclatoms) ! MM atom coordinates and charges in au
+    integer, intent(in) :: mmtypes(nclatoms)    ! MM atom types
     _REAL_, intent(out) :: escf                 ! SCF energy
     _REAL_, intent(out) :: dxyzqm(3,nqmatoms)   ! SCF QM gradient
     _REAL_, intent(out) :: dxyzcl(3,nclatoms)   ! SCF MM gradient
@@ -91,7 +91,8 @@ module qm2_extern_module
 #if defined(MPI)
     ! In parallel runs, only one thread needs to call the EXTERN program
     if ( mytaskid /= 0 ) return
-    if ((rem > 0) .or. (qmmm_nml%vsolv > 1) .or. (string_defined .and. .not. minimize)) then
+
+    if ((rem > 0) .or. (qmmm_nml%vsolv > 1)) then
        ! Add rank for parallel REMD run
        write (id,'(i3.3)') masterrank
     end if
@@ -149,6 +150,14 @@ module qm2_extern_module
       call get_mrcc_forces(do_gradient, nstep, ntpr, id, nqmatoms, qmcoords,&
            qmtypes, nclatoms, clcoords, escf, dxyzqm, dxyzcl, &
            qmmm_nml%qmcharge, qmmm_nml%spin)
+    case('quick')
+      call get_quick_forces(do_gradient, nstep, ntpr, id, nqmatoms, qmcoords,&
+           qmtypes, nclatoms, clcoords, escf, dxyzqm, dxyzcl, &
+           qmmm_nml%qmcharge, qmmm_nml%spin)
+    case('reaxff')
+      call get_reaxff_puremd_forces(nqmatoms, qmcoords, qmtypes, qmcharges,&
+           nclatoms, clcoords, mmtypes, escf, dxyzqm, &
+           dxyzcl, qmmm_nml%qmcharge)
 #ifdef MPI
     case('genmpi')
       call get_genmpi_forces( do_gradient, nstep, ntpr, id, nqmatoms, qmcoords,&
@@ -186,9 +195,10 @@ module qm2_extern_module
     implicit none
 
     integer :: i, ifind
-    character(len=20) :: programs(11) = (/'adf   ', 'gms   ', 'tc    ', 'gau   ', &
+    character(len=20) :: programs(13) = (/'adf   ', 'gms   ', 'tc    ', 'gau   ', &
                                          'orc   ', 'nw    ', 'qc    ', 'genmpi', &
-                                         'lio   ','mrcc  ', 'fb    '/)
+                                         'lio   ','mrcc  ', 'fb    ', 'quick ', &
+                                         'reaxff'/)
     character(len=20), intent(out) :: extern_program
 
     ! Select which external program to use
@@ -287,6 +297,18 @@ module qm2_extern_module
             '| DOI: 10.1021/ct500033w'
     end if
 
+    if ( trim(extern_program) == 'reaxff' ) then
+       write (6,'(/a/a/a/a/a/a)') &
+            '| Ali Rahnamoun, Mehmet Cagri Kaymak, Madushanka Manathunga,', &
+            '| Andreas W. Götz, Adri C. T. van Duin, Kenneth M. Merz,', &
+            '| and Hasan Metin Aktulga', &
+            '| "ReaxFF/AMBER - A Framework for Hybrid Reactive/Nonreactive', &
+            '| Force Field Molecular Dynamics Simulations"', &
+            '| QM/MM Method for Biomolecular Systems"', &
+            '| J. Chem. Theory Comput., 2020 16 (12), pp 7645-7654 ', &
+            '| DOI: 10.1021/acs.jctc.0c00874'
+    end if
+
   end subroutine print_citation_information
 
   ! Print information about natural constants
@@ -314,6 +336,7 @@ module qm2_extern_module
 #ifdef MPI
     use qm2_extern_genmpi_module, only: genmpi_finalize
 #endif
+    use qm2_extern_reaxff_puremd_module, only: reaxff_puremd_finalize
  
     character(len=20) :: extern_program
     call select_program(extern_program)
@@ -329,6 +352,8 @@ module qm2_extern_module
 #ifdef LIO
        call lio_finalize()
 #endif
+     case('reaxff')
+       call reaxff_puremd_finalize()
     end select
  
   end subroutine qm2_extern_finalize
