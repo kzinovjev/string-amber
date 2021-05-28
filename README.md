@@ -1,16 +1,16 @@
 # string-amber
-Adaptive string method implementation in sander (AmberTools21.3)
+Adaptive string method implementation in sander (AmberTools 21.3)
 
 If you use this software in your work, please cite:
 https://doi.org/10.1021/acs.jpca.7b10842
 
 ### Installation
 Copy all the files from sander/ and lapack/ to the corresponding directories in 
-`amber20_src/AmberTools/src`. The current files correspond to the version 21.3
-of AmberTools. Then set `-DMPI=TRUE` in `amber20_src/build/run_cmake` and 
+`amber20_src/AmberTools/src`. Then set `-DMPI=TRUE` in `amber20_src/build/run_cmake` and 
 continue with regular AmberTools installation.
 
-The code *may* work with another subversion, but if you experience
+The current files correspond to the version 21.3
+of AmberTools. The code *may* work with another subversion, but if you experience
 any problems, check the current version by running
 ```
 ./update_amber --version
