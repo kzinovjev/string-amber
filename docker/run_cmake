@@ -1,0 +1,40 @@
+#!/bin/bash
+
+#  This file gives some sample cmake invocations.  You may wish to
+#  edit some options that are chosen here.
+
+#  For information on how to get cmake, visit this page:
+#  https://ambermd.org/pmwiki/pmwiki.php/Main/CMake-Quick-Start
+
+#  For information on common options for cmake, visit this page:
+#  http://ambermd.org/pmwiki/pmwiki.php/Main/CMake-Common-Options
+
+#  (Note that you can change the value of CMAKE_INSTALL_PREFIX from what
+#  is suggested below, but it cannot coincide with the amber20_src
+#  folder.)
+
+AMBER_PREFIX=$(dirname $(dirname `pwd`))
+
+cmake $AMBER_PREFIX/amber20_src \
+  -DCMAKE_INSTALL_PREFIX=$AMBER_PREFIX/amber20 \
+  -DCOMPILER=GNU  -DBUILD_GUI=FALSE \
+  -DMPI=TRUE -DCUDA=FALSE -DINSTALL_TESTS=TRUE \
+  -DDOWNLOAD_MINICONDA=TRUE -DMINICONDA_USE_PY3=TRUE \
+  2>&1 | tee  cmake.log
+
+
+if [ ! -s cmake.log ]; then
+  echo ""
+  echo "Error:  No cmake.log file created: you may need to edit run_cmake"
+  exit 1
+fi
+
+echo ""
+echo "If the cmake build report looks OK, you should now do the following:"
+echo ""
+echo "    make install"
+echo "    source $AMBER_PREFIX/amber20/amber.sh"
+echo ""
+echo "Consider adding the last line to your login startup script, e.g. ~/.bashrc"
+echo ""
+
