@@ -25,6 +25,6 @@ and if it's newer, downgrade by running
 ```
 
 A Dockerfile for AmberTools21+ASM installation in a Docker container can be 
-found [here](docker/Dockerfile). AmberTools21.tar.bz2 (as obtained from
-https://ambermd.org/GetAmber.php) and [run_cmake](docker/run_cmake) files must 
-be available in the build context to build the image.
+found [here](docker/Dockerfile). AmberTools21.tar.bz2 file (as obtained from
+https://ambermd.org/GetAmber.php) must be available in the build context to 
+build the image.

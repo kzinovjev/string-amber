@@ -15,13 +15,13 @@ WORKDIR /usr/bin
 COPY AmberTools21.tar.bz2 .
 RUN tar xjvf AmberTools21.tar.bz2 && rm AmberTools21.tar.bz2
 
-WORKDIR amber20_src/AmberTools/src
+WORKDIR amber20_src
 RUN git clone https://github.com/kzinovjev/string-amber
-RUN cp string-amber/lapack/* lapack/
-RUN cp string-amber/sander/* sander/
+RUN cp string-amber/lapack/* AmberTools/src/lapack/
+RUN cp string-amber/sander/* AmberTools/src/sander/
+RUN cp string-amber/docker/run_cmake build/
 
-WORKDIR /usr/bin/amber20_src/build
-COPY run_cmake .
+WORKDIR build
 RUN chmod +x run_cmake
 RUN ./run_cmake
 RUN make -j 4 install
