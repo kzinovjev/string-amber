@@ -71,7 +71,7 @@ BOND :1@C :2Cl-
 PPLANE :1@C :1@H2 :1@H1 :1@H3
 ANGLE :1@CL1 :1@C :2@Cl-
 ```
-The format of `cvs.def` is much simpler compared to the resulting `CVs` file. Each line describes a single CV and contains a keyword defining the type of the CV, followed by ambermasks for the atoms involved in the CV. Fours types are supported:
+The format of `cvs.def` is much simpler compared to the resulting `CVs` file. Each line describes a single CV and contains a keyword defining the type of the CV, followed by ambermasks for the atoms involved in the CV. Four types are supported:
 
 1. `BOND` - interatomic distance (2 atoms)
 2. `ANGLE` - bond angle (3 atoms)
