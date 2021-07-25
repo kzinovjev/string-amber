@@ -11,10 +11,11 @@ REORDER_TRJ_FORMAT = 'nc'
 
 def get_ntwx():
     with open(IN_FILE) as f:
-        ntwx_regex = re.compile(r".*=(\D*)([0-9]*)")
+        ntwx_regex = re.compile(r".*(^|[, \t]+)ntwx[ \t]*=[ \t]*([0-9]*)[\D]*")
         for line in f:
-            if line.strip().startswith('ntwx'):
-                return int(ntwx_regex.match(line.strip()).groups()[1])
+            match = ntwx_regex.match(line.strip())
+            if match:
+                return int(match.groups()[1])
 
 
 def get_results_dir():

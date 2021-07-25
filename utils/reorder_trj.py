@@ -167,13 +167,15 @@ def parse_in(in_file):
     dt = None
     assert_file_exist(in_file)
     with open(in_file) as f:
-        ntwx_regex = re.compile(r".*=(\D*)([0-9]*)")
-        dt_regex = re.compile(r".*=(\D*)([0-9.]*)")
+        ntwx_regex = re.compile(r".*(^|[, \t]+)ntwx[ \t]*=[ \t]*([0-9]*)[\D]*")
+        dt_regex = re.compile(r".*(^|[, \t]+)dt[ \t]*=[ \t]*([0-9\.]*)[\D]*")
         for line in f:
-            if line.strip().startswith('ntwx'):
-                ntwx = int(ntwx_regex.match(line.strip()).groups()[1])
-            elif line.strip().startswith('dt'):
-                dt = float(dt_regex.match(line.strip()).groups()[1])
+            ntwx_match = ntwx_regex.match(line.strip())
+            if ntwx_match:
+                ntwx = int(ntwx_match.groups()[1])
+            dt_match = dt_regex.match(line.strip())
+            if dt_match:
+                dt = float(dt_match.groups()[1])
     return ntwx, dt
 
 
