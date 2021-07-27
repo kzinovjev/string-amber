@@ -339,7 +339,7 @@ Final remarks
 -------------
 While the method is made as "black box" as possible, in the sense that there are very few parameters to tweak and input files are fairly easy to prepare, there are several things to keep in mind.
 
-First, it seems that the string optimization and especially the path CV are more sensitive to any instabilities compared to regular US simulations. If you struggle with protons flying around or weird bonds being formed during a regular QM/MM US simulation, ASM will probably make it worse. So, it is quite common to add multiple restraints to reinforce the bonds that are not suppose to break etc. 
+First, it seems that the string optimization and especially the path CV are more sensitive to any instabilities compared to regular US simulations. If you struggle with protons flying around or weird bonds being formed during a regular QM/MM US simulation, ASM will probably make it worse. So, it is quite common to add multiple restraints to reinforce the bonds that are not supposed to break etc. 
 
 Second, while ASM can treat very complex multiple-step reactions in a single job, it is a good idea to split a "long" string into "shorter" ones whenever it is possible. So, if you know that your reaction has a stable intermediate, it makes sense to run two separate jobs: *reactants &rarr; intermediate* and *intermediate &rarr; products*. 
 
