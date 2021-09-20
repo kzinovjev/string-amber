@@ -208,6 +208,7 @@ contains
 			do j = 1, i
 				idx = idx + 1
 				do k = 1, natom
+					if (atm_mass(k) == 0) cycle
 					M(idx) = M(idx) + &
 							 dot_product( Jacobian(k*3-2:k*3,i), &
 										  Jacobian(k*3-2:k*3,j) ) / &
