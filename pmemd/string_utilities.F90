@@ -1,4 +1,4 @@
-module string_utilities
+module string_utilities_mod
 
 	public
 	
@@ -18,29 +18,6 @@ contains
 		close(u)
 	
 	end subroutine read_string
-	!================================
-	
-	
-	
-	!================================
-	subroutine coordinates_write( x, file )
-
-		use nblist, only: a, b, c, alpha, beta, gamma
-#include "../include/memory.h"			
-	
-		real*8, dimension(:), intent(in) :: x
-		character( len = * ), intent(in) :: file
-		integer :: unit
-		
-		unit = next_unit()
-		open( unit = unit, file = file, status = "replace" )
-		write(unit,"(A)") "default"
-		write(unit,"(I6)") natom
-		write(unit,"(6F12.7)") x(1:natom*3)
-		write(unit,"(6F12.7)") a, b, c, alpha, beta, gamma
-		close(unit)
-	
-	end subroutine coordinates_write
 	!================================
 	
 	
@@ -67,8 +44,7 @@ contains
 	
 	
 	!================================
-	subroutine matinv( M, Minv ) 
-#include "../include/dprec.fh"
+	subroutine matinv( M, Minv )
 		real*8, dimension(:), intent(in) :: M
 		real*8, dimension(:), intent(out) :: Minv
 		
@@ -89,13 +65,13 @@ contains
 			end do
 		end do
 
-		call D_OR_S()potrf( 'L', n, Mtmp, n, inf )
+		call dpotrf( 'L', n, Mtmp, n, inf )
 		if( inf /= 0 ) then
 			write(*,*) "dpotrf in matinv failed: ", inf
 			stop
 		end if
 
-		call D_OR_S()potri( 'L', n, Mtmp, n, inf )
+		call dpotri( 'L', n, Mtmp, n, inf )
 		if( inf /= 0 ) then
 			write(*,*) "dpotri in matinv failed: ", inf
 			stop
@@ -128,9 +104,9 @@ contains
 	
 	end subroutine write_error
 	!================================
-	
-	
-	
+
+
+
 	!================================
 	integer function lines( filename )
 
@@ -148,31 +124,7 @@ contains
 
 	end function lines
 	!================================
-	
-	
-	
-	!================================
-	integer function lines2( filename )
-#include "parallel.h"
-		character(len=*), intent(in) :: filename
-		integer :: stat, u
-		character*200 :: tmpfile
-		
-		write(tmpfile,*) masterrank
-		tmpfile = "string_stilities_lines_tmp_file"//trim(adjustl(tmpfile))
-		call system("wc -l "//trim(adjustl(filename))//" > "//trim(tmpfile))
-		u = next_unit()
-		open(unit=u, file=trim(tmpfile), status="old")
-		read(u,*) lines2
-		close(u)
-		call system("rm -rf "//trim(tmpfile))
-		
-		write(*,*) lines2
-		flush(6)
-
-	end function lines2
-	!================================
 
 
 
-end module string_utilities
+end module string_utilities_mod

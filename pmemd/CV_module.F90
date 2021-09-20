@@ -1,4 +1,7 @@
-module CV_module
+module CV_module_mod
+
+    use prmtop_dat_mod, only : ifbox
+    use pbc_mod, only : pbc_box
 
     public :: CV_bond, CV_angle, CV_dihedral, CV_pointplane, map_periodic
 	private
@@ -304,15 +307,15 @@ contains
     subroutine map_periodic( dx )
     !Makes the vector between two points as short as possible
     !by taking the closest periodic cell.
-    
-#include "box.h"
+
         real*8, dimension(3), intent(inout) :: dx
         integer :: i
        
 	if (ifbox==0) return
 
         do i = 1, 3
-            if( abs( dx(i) ) > box(i)*0.5_8 ) dx(i) = dx(i) - sign( box(i), dx(i) )*int( abs(dx(i)/box(i)) + 0.5 )
+            if( abs( dx(i) ) > pbc_box(i)*0.5_8 ) dx(i) = &
+                    dx(i) - sign( pbc_box(i), dx(i) )*int( abs(dx(i)/pbc_box(i)) + 0.5 )
         end do    
     
     end subroutine map_periodic
@@ -320,4 +323,4 @@ contains
     
     
     
-end module CV_module
+end module CV_module_mod

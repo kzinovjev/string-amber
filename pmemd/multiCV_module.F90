@@ -1,7 +1,7 @@
-module multiCV_module
+module multiCV_module_mod
 
-    use CV_module
-    use string_utilities, only : next_unit
+    use CV_module_mod
+    use string_utilities_mod, only : next_unit
 
     public :: MBOND_TYPE, MANGLE_TYPE, MDIHEDRAL_TYPE, MPPLANE_TYPE, &
               prepare_multiCV, calculate_multiCV
@@ -184,4 +184,4 @@ contains
 
     end subroutine set_xyz
 
-end module multiCV_module
+end module multiCV_module_mod

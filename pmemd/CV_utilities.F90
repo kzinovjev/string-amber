@@ -11,13 +11,13 @@
 !	update_CVs
 !
 !===============================================================================
-module CV_utilities
+module CV_utilities_mod
 
-        use CV_module, only : CV_bond, CV_angle, CV_dihedral, CV_pointplane
-        use string_utilities, only : next_unit, write_error
-        use multiCV_module
+        use CV_module_mod, only : CV_bond, CV_angle, CV_dihedral, CV_pointplane
+        use string_utilities_mod, only : next_unit, write_error
+        use multiCV_module_mod
 
-#include "../include/memory.h"	
+		use prmtop_dat_mod, only : natom
 
 	public
 	private :: CV
@@ -194,8 +194,8 @@ contains
 	
 	!================================
 	subroutine get_M(Jacobian, M)
-		
-		use molecule, only : mol_info
+
+		use prmtop_dat_mod, only : atm_mass
 
 		real*8, dimension(natom*3,nCV), intent(in) :: Jacobian
 		real*8, dimension(msize), intent(out) :: M
@@ -211,7 +211,7 @@ contains
 					M(idx) = M(idx) + &
 							 dot_product( Jacobian(k*3-2:k*3,i), &
 										  Jacobian(k*3-2:k*3,j) ) * &
-							 mol_info%atom_mass(k)
+							 atm_mass(k)
 				end do
 			end do
 		end do  
@@ -359,4 +359,4 @@ contains
 	!================================
 	
 	
-end module CV_utilities
+end module CV_utilities_mod

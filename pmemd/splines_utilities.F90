@@ -1,4 +1,4 @@
-module splines_utilities
+module splines_utilities_mod
 
 public
 private :: solve
@@ -334,7 +334,6 @@ contains
 	
 	
 	subroutine solve(n, A, b, x)
-#include "../include/dprec.fh"	
 		real*8, dimension(n,n), intent(in) :: A
 		real*8, dimension(n), intent(in) :: b
 		real*8, dimension(n), intent(out) :: x
@@ -344,14 +343,14 @@ contains
 		real*8, dimension(n,n) :: Mtmp
 
 		Mtmp = A
-		call D_OR_S()getrf(n, n, Mtmp, n, ipiv, info)
+		call dgetrf(n, n, Mtmp, n, ipiv, info)
 		if( info /= 0 ) then
 			write(*,*) "dgetrf in solve failed: ", info
 			stop
 		end if
 	
 		x = b
-		call D_OR_S()getrs('N', n, 1, Mtmp, n, ipiv, x, n, info)
+		call dgetrs('N', n, 1, Mtmp, n, ipiv, x, n, info)
 		if( info /= 0 ) then
 			write(*,*) "dgetrs in solve failed: ", info
 			stop
@@ -430,4 +429,4 @@ contains
 	end function Thomas  
 
 
-end module splines_utilities
+end module splines_utilities_mod

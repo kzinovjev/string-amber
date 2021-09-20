@@ -9,7 +9,7 @@
 !
 !   Public subroutines:
 !
-!   string_wrap                  Sets up the calculation
+!   string_define                Sets up the calculation
 !   string_calc                  Launchs the string method calculation
 !
 !
@@ -17,21 +17,23 @@
 !    ziki@uv.es
 !
 !===============================================================================
-module string_method
+module string_method_mod
 
 #ifdef MPI
 
-    use molecule
-    use CV_utilities
-    use string_utilities
-    use splines_utilities
+    use CV_utilities_mod
+    use string_utilities_mod
+    use splines_utilities_mod
     
-    use constants, only : KB
-        use random, only : amrand
+    use gbl_constants_mod, only : KB
+    use random_mod, only : amrand
+    use mdin_ctrl_dat_mod, only : dt, temp0
+    use parallel_dat_mod, only : pmemd_master_comm, mytaskid, &
+                                 pmemd_comm_number, numgroups
+    use prmtop_dat_mod, only : natom
+
 
 #include "mpif.h"
-#include "../include/md.h"
-#include "parallel.h"
     
     private
     
@@ -105,7 +107,7 @@ module string_method
     !--------------------------
     
     !---For MPI---
-    integer :: ierr
+    integer :: ierr, commmaster, sanderrank
     integer, dimension(mpi_status_size) :: status
     integer, dimension(:), allocatable :: rcv_size !For mpi_allgatherv
     !-------------
@@ -137,12 +139,10 @@ contains
 
     
     !==================================================================
-    subroutine string_define(x)
-
-#include "../include/memory.h"    
-#include "parallel.h"
+    subroutine string_define(x_)
         
-        real*8, dimension(natom*3), intent(in) :: x
+        real*8, dimension(3,natom), intent(in) :: x_
+        real*8, dimension(natom*3) :: x
 
         integer :: i, j, unit
         real*8  :: force_constant, force_constant_d
@@ -181,6 +181,18 @@ contains
                             minimize,&
                             nodes,&
                             node
+
+        inquire(file = "STRING", exist=string_defined)
+        if (.not. string_defined) return
+
+        x = reshape(x_, (/ natom*3 /))
+
+        ! To minimize changes, just assign to the old sander variables
+        ! the corresponding values from pmemd
+        commmaster = pmemd_master_comm
+        sanderrank = mytaskid
+        proc = pmemd_comm_number
+        nnodes = numgroups
 
         if( sanderrank > 0 ) return
 
@@ -236,11 +248,6 @@ contains
     
         !Read CV definitions and calculate the initial values
         call prepare_CVs(trim(adjustl(CV_file)))
-
-        if (.not. minimize) then
-            call mpi_comm_rank(commmaster, proc, ierr)
-            call mpi_comm_size(commmaster, nnodes, ierr)
-        end if
 
         if (minimize) then
             proc = 0
@@ -469,12 +476,13 @@ contains
     
     
     !==================================================================
-    subroutine string_calc(x, force, energy)
+    subroutine string_calc(x_, force, energy)
     
-        real*8, dimension(:), intent(in) :: x
-        real*8, dimension(:), intent(inout) :: force
+        real*8, dimension(3,natom), intent(in) :: x_
+        real*8, dimension(:,:), intent(out) :: force
         real*8, intent(out) :: energy
 
+        real*8, dimension(natom*3) :: x
         real*8 :: dpos_tmp, dK_tmp, pos_target, delta, sigma2, sigma2_target
         real*8 :: s, z
         real*8, dimension(nCV) :: dz_tmp
@@ -483,11 +491,14 @@ contains
         if (.not. string_defined) return
         if( sanderrank > 0 ) return
 
+        x = reshape(x_, (/ natom*3 /))
+
         step = step + 1
 
         call update_CV(x)
-    
+
         !Forces are applied during both preparation and production
+        force = 0.
         if (string_move) then
             call add_force_ld
         else !If string is not moving, the Umbrella Sampling along the path CV is performed
@@ -540,7 +551,7 @@ contains
             mean_dx = mean_dx*0.99+dpos_tmp*0.01
             mean_sigma2 = mean_sigma2*0.99+dpos_tmp**2*0.01
             sigma2 = dpos_tmp**2
-            if (step < 100) then
+            if (step < 1000) then
                 dK_tmp = 0.!Wait for mean_sigma2 and mean_dx to converge
             else    
                 dK_tmp = RT/sigma2_target - RT/(mean_sigma2) + force_kappa*mean_dx**2!The last term to make K slightly larger when far
@@ -721,11 +732,10 @@ contains
 
             integer :: j, k
             character*20 :: frmt
+            real*8, dimension(natom*3) :: grad
 
-            force = force - force_scale* &
-                            matmul(Jacobian, &
-                                   matmulp(B(:,node), &
-                                           map_periodic(CVs-string(:,node))))
+            grad = matmul(Jacobian, matmulp(B(:,node), map_periodic(CVs-string(:,node))))
+            force = - force_scale * reshape(grad, (/ 3, natom /))
         
         end subroutine add_force_ld
         !--------------------------
@@ -733,14 +743,13 @@ contains
         
         !--------------------------
         subroutine add_force_sz !Potential along path CV (for precise PMF calculation)
-        
-#include "../include/memory.h"        
-            real*8, dimension(natom*3) :: grad_s, grad_z
+
+            real*8, dimension(natom*3) :: grad_s, grad_z, grad
             
             call get_s(CVs, s, z, Jacobian, grad_s, grad_z)
             energy = K_l(node)*0.5*(s-pos(node))**2 + K_d*0.5*merge(z, 0._8, z>0._8)**2
-            force = force - force_scale* &
-                            (K_l(node)*(s-pos(node))*grad_s + K_d*merge(z, 0._8, z>0._8)*grad_z)
+            grad = (K_l(node)*(s-pos(node))*grad_s + K_d*merge(z, 0._8, z>0._8)*grad_z)
+            force = - force_scale * reshape(grad, (/ 3, natom /))
         
         end subroutine add_force_sz
         !--------------------------
@@ -1639,7 +1648,6 @@ contains
     !==================================================================
     subroutine get_s(CV, s, z, Jacobian, grad_s, grad_z)
     !Calculation of a metric-corrected path CV (J. Comput. Chem. 2014, 35, 1672–1681)
-#include "../include/memory.h"
 
         real*8, dimension(nCV), intent(in) :: CV
         real*8, intent(out) :: s
@@ -1689,4 +1697,4 @@ contains
     
 #endif    
     
-end module string_method
+end module string_method_mod
