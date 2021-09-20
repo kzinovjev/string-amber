@@ -210,7 +210,7 @@ contains
 				do k = 1, natom
 					M(idx) = M(idx) + &
 							 dot_product( Jacobian(k*3-2:k*3,i), &
-										  Jacobian(k*3-2:k*3,j) ) * &
+										  Jacobian(k*3-2:k*3,j) ) / &
 							 atm_mass(k)
 				end do
 			end do
