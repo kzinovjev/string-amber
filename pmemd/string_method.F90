@@ -495,7 +495,11 @@ contains
 
         step = step + 1
 
-        call update_CV(x)
+        if (mod(step, string_move_period) == 0) then
+            call update_CV(x)
+        else
+            call update_CVs(x)
+        end if
 
         !Forces are applied during both preparation and production
         force = 0.
