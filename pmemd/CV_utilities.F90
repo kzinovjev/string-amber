@@ -33,6 +33,9 @@ module CV_utilities_mod
 	
 	integer :: nCV   !number of collective variables
 	integer :: msize !size of the metric tensor array (nCV*(nCV+1)/2)
+
+    integer :: n_used_atoms !number of atoms involved in any CV
+    integer, dimension(:), allocatable :: used_atoms !atoms involved in any CV
 	
 	real*8, dimension(:), allocatable :: CVs, M
 	real*8, dimension(:,:), allocatable :: Jacobian
@@ -97,10 +100,41 @@ contains
 		end do
 		!---------------------------------
 		close(u)
+        call populate_used_atoms
 	
 	end subroutine prepare_CVs
 	!================================
-	
+
+
+
+    !================================
+    subroutine populate_used_atoms
+
+        integer, dimension(4), parameter :: n_CV_atoms = (/ 2, 3, 4, 4 /)
+        logical, dimension(natom) :: used_atoms_mask
+
+        integer :: i, j
+
+        used_atoms_mask = .false.
+        do i = 1, nCV
+            do j = 1, n_CV_atoms(CV_list(i)%CV_type)
+                used_atoms_mask(CV_list(i)%atoms(j)) = .true.
+            end do
+        end do
+
+        n_used_atoms = count(used_atoms_mask)
+        allocate(used_atoms(n_used_atoms))
+
+        j = 1
+        do i = 1, natom
+            if (.not. used_atoms_mask(i)) cycle
+            used_atoms(j) = i
+            j = j + 1
+        end do
+
+    end subroutine populate_used_atoms
+    !================================
+
 	
 	
 	!================================
@@ -200,15 +234,16 @@ contains
 		real*8, dimension(natom*3,nCV), intent(in) :: Jacobian
 		real*8, dimension(msize), intent(out) :: M
 		
-		integer :: i, j, k, idx
+		integer :: i, j, k, l, idx
 
 		idx = 0
 		M = 0._8
 		do i = 1, nCV
 			do j = 1, i
 				idx = idx + 1
-				do k = 1, natom
-					if (atm_mass(k) == 0) cycle
+				do l = 1, n_used_atoms
+                    k = used_atoms(l)
+                    if (atm_mass(k) == 0) cycle
 					M(idx) = M(idx) + &
 							 dot_product( Jacobian(k*3-2:k*3,i), &
 										  Jacobian(k*3-2:k*3,j) ) / &
