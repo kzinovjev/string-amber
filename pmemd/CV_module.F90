@@ -15,9 +15,7 @@ contains
         real*8, dimension(:), intent(in) :: x
         integer, dimension(2), intent(in) :: atm
         real*8, intent(out) :: bond
-        real*8, dimension(:), intent(out) :: gradient
-        
-	gradient = 0._8
+        real*8, dimension(:), intent(inout) :: gradient
 
 	call dist( x(atm(1)*3-2:atm(1)*3), x(atm(2)*3-2:atm(2)*3), bond, &
 		   gradient(atm(1)*3-2:atm(1)*3), gradient(atm(2)*3-2:atm(2)*3) )
@@ -33,7 +31,7 @@ contains
         real*8, dimension(:), intent(in) :: x
         integer, dimension(3), intent(in) :: atm
         real*8, intent(out) :: angle
-        real*8, dimension(:), intent(out) :: gradient
+        real*8, dimension(:), intent(inout) :: gradient
         
         real*8, dimension(3,3) :: xatm, dx
         real*8, dimension(3) :: ab, bc, nab, nbc
@@ -58,15 +56,14 @@ contains
         if( cosang < -1._8 ) cosang = -1._8
         
         angle = acos( cosang )*57.295780_8
-        
-        gradient = 0._8
+
         d_acos = -57.295780_8/sqrt( 1._8 - cosang**2 )
         dx(:,1) = ( nbc - cosang*nab )/dab
         dx(:,3) = ( nab - cosang*nbc )/dbc
         dx(:,2) = -( dx(:,1) + dx(:,3) )
         
         do i = 1, 3
-            gradient(atm(i)*3-2:atm(i)*3) = dx(:,i)*d_acos
+            gradient(atm(i)*3-2:atm(i)*3) = gradient(atm(i)*3-2:atm(i)*3) + dx(:,i)*d_acos
         end do
         
     end subroutine CV_angle
@@ -80,7 +77,7 @@ contains
         real*8, dimension(:), intent(in) :: x
         integer, dimension(4), intent(in) :: atm
         real*8, intent(out) :: dihedral
-        real*8, dimension(:), intent(out) :: gradient
+        real*8, dimension(:), intent(inout) :: gradient
         real*8, dimension(3,4) :: xatm
         integer :: i
 
@@ -121,8 +118,7 @@ contains
       ! . determine the dihedral.
         dihedral = sgnfac * acos ( cosang )
         dihedral = dihedral*57.295780_8
-      
-        gradient = 0._8
+
       ! . calculate rkj.
         rkj = sqrt ( dot_product ( drkj, drkj ) )
       
@@ -139,11 +135,10 @@ contains
         dtk = dtl * ( factkl - 1.0_8 ) - factij * dti
       
       ! . calculate the gradients.
-        gradient(atm(1)*3-2:atm(1)*3) = dti
-        gradient(atm(2)*3-2:atm(2)*3) = dtj
-        gradient(atm(3)*3-2:atm(3)*3) = dtk
-        gradient(atm(4)*3-2:atm(4)*3) = dtl
-        gradient = gradient*57.295780_8    
+        gradient(atm(1)*3-2:atm(1)*3) = gradient(atm(1)*3-2:atm(1)*3) + dti * 57.295780_8
+        gradient(atm(2)*3-2:atm(2)*3) = gradient(atm(2)*3-2:atm(2)*3) + dtj * 57.295780_8
+        gradient(atm(3)*3-2:atm(3)*3) = gradient(atm(3)*3-2:atm(3)*3) + dtk * 57.295780_8
+        gradient(atm(4)*3-2:atm(4)*3) = gradient(atm(4)*3-2:atm(4)*3) + dtl * 57.295780_8
         
 !         write(*,"(3F20.5)") dti*57.295780_8, dtj*57.295780_8, dtk*57.295780_8, dtl*57.295780_8
 !         flush(6)
@@ -174,7 +169,7 @@ contains
         real*8, dimension(:), intent(in) :: x
         integer, dimension(4), intent(in) :: atm
         real*8, intent(out) :: pointplane
-        real*8, dimension(:), intent(out) :: gradient
+        real*8, dimension(:), intent(inout) :: gradient
         real*8, dimension(3,4) :: xatm
 
         real*8,dimension(3)    :: V, U, W                   !Vectores y puntos definicion
@@ -213,8 +208,6 @@ contains
 
 
         pointplane =  ( E + Pl(4) ) / sqrt( F )
-
-        gradient = 0._8
         
 !Gradiente del plano
 !A
@@ -271,7 +264,7 @@ contains
         g = ( gE + gPl(:,:,4) ) / sqrt( F ) - ( ( E + Pl(4) )*gF ) / ( 2*F*sqrt(F) ) 
 
         do i = 1, 4
-            gradient(atm(i)*3-2:atm(i)*3) = g(:,i)
+            gradient(atm(i)*3-2:atm(i)*3) = gradient(atm(i)*3-2:atm(i)*3) + g(:,i)
         end do           
         
     end subroutine CV_pointplane
@@ -287,7 +280,7 @@ contains
 
 	real*8, dimension(3), intent(in) :: A, B
 	real*8, intent(out) :: value
-	real*8, dimension(3), intent(out) :: A_gradient, B_gradient
+	real*8, dimension(3), intent(inout) :: A_gradient, B_gradient
 
 	real*8, dimension(3) :: dx
 
@@ -296,8 +289,8 @@ contains
 
 	value = sqrt( sum( dx**2 ) )
 
-	A_gradient = dx/value
-	B_gradient = -A_gradient
+	A_gradient = A_gradient + dx/value
+	B_gradient = B_gradient - dx/value
 
     end subroutine dist
     !------------------------
