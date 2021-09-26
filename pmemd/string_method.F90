@@ -730,13 +730,16 @@ contains
         !--------------------------
         subroutine add_force_ld !Elliptic potential (for the string method itself)
 
-            integer :: j, k
-            character*20 :: frmt
-            real*8, dimension(natom*3) :: grad
+            integer :: i, j
+            real*8, dimension(nCV) :: gradld !Gradient of l+d in CV space
 
-            grad = matmul(Jacobian, matmulp(B(:,node), map_periodic(CVs-string(:,node))))
-            force = - force_scale * reshape(grad, (/ 3, natom /))
-        
+            gradld = matmulp(B(:,node), map_periodic(CVs-string(:,node)))
+
+            do i = 1, n_used_atoms
+                j = used_atoms(i)
+                force(:,j) = - force_scale * matmul(Jacobian(j*3-2:j*3,:), gradld)
+            end do
+
         end subroutine add_force_ld
         !--------------------------
         
@@ -744,12 +747,18 @@ contains
         !--------------------------
         subroutine add_force_sz !Potential along path CV (for precise PMF calculation)
 
-            real*8, dimension(natom*3) :: grad_s, grad_z, grad
+            integer :: i, j
+            real*8, dimension(3,n_used_atoms) :: grad_s, grad_z, grad
             
             call get_s(CVs, s, z, Jacobian, grad_s, grad_z)
             energy = K_l(node)*0.5*(s-pos(node))**2 + K_d*0.5*merge(z, 0._8, z>0._8)**2
-            grad = (K_l(node)*(s-pos(node))*grad_s + K_d*merge(z, 0._8, z>0._8)*grad_z)
-            force = - force_scale * reshape(grad, (/ 3, natom /))
+
+            do i = 1, n_used_atoms
+                j = used_atoms(i)
+                force(:,j) = - force_scale * &
+                               (K_l(node)*(s-pos(node))*grad_s(:,i) + &
+                                K_d*merge(z, 0._8, z>0._8)*grad_z(:,i))
+            end do
         
         end subroutine add_force_sz
         !--------------------------
@@ -1653,9 +1662,9 @@ contains
         real*8, intent(out) :: s
         real*8, intent(out), optional :: z
         real*8, dimension(natom*3,nCV), intent(in), optional :: Jacobian
-        real*8, dimension(natom*3), intent(out), optional :: grad_s, grad_z
+        real*8, dimension(3,n_used_atoms), intent(out), optional :: grad_s, grad_z
 
-        integer :: i
+        integer :: i, j
         real*8 :: d, sumw
         
         real*8, dimension(npointstotal) :: w
@@ -1680,14 +1689,20 @@ contains
         s = dot_product(arc, w)
         
         if (present(grad_z)) then
-            grad_z = matmul(Jacobian, sum(grad_tmp, dim=2))
+            do i = 1, n_used_atoms
+                j = used_atoms(i)
+                grad_z(:,i) = matmul(Jacobian(j*3-2:j*3,:), sum(grad_tmp, dim=2))
+            end do
         end if
         
         if (present(grad_s)) then
             do i = 1, npointstotal
                 grad_tmp(:,i) = grad_tmp(:,i)*(s-arc(i))
             end do
-            grad_s = matmul(Jacobian, sum(grad_tmp, dim=2))*lambda
+            do i = 1, n_used_atoms
+                j = used_atoms(i)
+                grad_s(:,i) = matmul(Jacobian(j*3-2:j*3,:), sum(grad_tmp, dim=2))*lambda
+            end do
         end if
     
     end subroutine get_s
