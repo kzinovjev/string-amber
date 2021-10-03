@@ -595,8 +595,9 @@ contains
                 call write_params
             end if
 
-            if (string_move) call stop_string !stops the string movement if requested 
-                                              !(by creating file STOP_STRING)
+            if (string_move .and. mod(step, string_move_period) == 0) then
+                call stop_string !stops the string movement if requested (by creating file STOP_STRING)
+            end if
 
         end if
 
