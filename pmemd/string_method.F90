@@ -495,7 +495,7 @@ contains
 
         step = step + 1
 
-        if (mod(step, string_move_period) == 0) then
+        if (string_move .and. mod(step, string_move_period) == 0) then
             call update_CV(x)
         else
             call update_CVs(x)
