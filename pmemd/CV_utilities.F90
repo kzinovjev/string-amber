@@ -110,16 +110,13 @@ contains
     !================================
     subroutine populate_used_atoms
 
-        integer, dimension(4), parameter :: n_CV_atoms = (/ 2, 3, 4, 4 /)
         logical, dimension(natom) :: used_atoms_mask
 
         integer :: i, j
 
         used_atoms_mask = .false.
         do i = 1, nCV
-            do j = 1, n_CV_atoms(CV_list(i)%CV_type)
-                used_atoms_mask(CV_list(i)%atoms(j)) = .true.
-            end do
+            call set_used_atoms_mask(i, used_atoms_mask)
         end do
 
         n_used_atoms = count(used_atoms_mask)
@@ -134,6 +131,29 @@ contains
 
     end subroutine populate_used_atoms
     !================================
+
+
+	!================================
+	subroutine set_used_atoms_mask(index, used_atoms_mask)
+
+        integer, dimension(4), parameter :: N_CV_ATOMS = (/ 2, 3, 4, 4 /)
+		integer, intent(in) :: index
+		logical, dimension(natom), intent(inout) :: used_atoms_mask
+
+		integer :: i
+
+		select case ( CV_list(index)%CV_type )
+			case (MBOND_TYPE, MANGLE_TYPE, MDIHEDRAL_TYPE, MPPLANE_TYPE)
+				call set_multiCV_used_atoms_mask(CV_list(index)%mindex, &
+				                                 used_atoms_mask)
+			case default
+				do i = 1, N_CV_ATOMS(CV_list(index)%CV_type)
+                	used_atoms_mask(CV_list(index)%atoms(i)) = .true.
+            	end do
+		end select
+
+	end subroutine set_used_atoms_mask
+	!================================
 
 	
 	

@@ -487,6 +487,8 @@ contains
         real*8 :: s, z
         real*8, dimension(nCV) :: dz_tmp
 
+        logical :: is_move_step, is_REX_step
+
         energy = 0
         if (.not. string_defined) return
         if( sanderrank > 0 ) return
@@ -495,7 +497,10 @@ contains
 
         step = step + 1
 
-        if (string_move .and. mod(step, string_move_period) == 0) then
+        is_move_step = string_move .and. mod(step, string_move_period) == 0
+        is_REX_step = mod(step, REX_period) == 0
+
+        if (is_move_step .or. is_REX_step) then
             call update_CV(x)
         else
             call update_CVs(x)
@@ -568,7 +573,7 @@ contains
                 dK = dK + dK_tmp
             end if
 
-            if (string_move .and. mod(step, string_move_period) == 0) then
+            if (is_move_step) then
                 if (fix_ends .and. terminal) dz = 0._8
                 string(:,node) = string(:,node) + dz/gamma*dt/string_move_period
                 if (.not. terminal) pos(node) = pos(node) + scale_dpos(dpos/position_gamma*dt/string_move_period)
@@ -584,7 +589,7 @@ contains
 
             call write_dat
 
-            if (mod(step, REX_period) == 0) call REX
+            if (is_REX_step) call REX
             if (mod(step, buffer_size) == 0) call string_PMF_calculate
 
             if (string_move .and. &
@@ -595,7 +600,7 @@ contains
                 call write_params
             end if
 
-            if (string_move .and. mod(step, string_move_period) == 0) then
+            if (is_move_step) then
                 call stop_string !stops the string movement if requested (by creating file STOP_STRING)
             end if
 

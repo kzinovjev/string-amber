@@ -4,7 +4,7 @@ module multiCV_module_mod
     use string_utilities_mod, only : next_unit
 
     public :: MBOND_TYPE, MANGLE_TYPE, MDIHEDRAL_TYPE, MPPLANE_TYPE, &
-              prepare_multiCV, calculate_multiCV
+              prepare_multiCV, set_multiCV_used_atoms_mask, calculate_multiCV
     private
 
     integer, parameter :: MBOND_TYPE = 5, &
@@ -84,12 +84,31 @@ contains
     end subroutine prepare_multiCV
 
 
+    subroutine set_multiCV_used_atoms_mask(index, used_atoms_mask)
+
+        integer, intent(in) :: index
+        logical, dimension(:), intent(inout) :: used_atoms_mask
+
+        integer :: i, j
+        type(multiCV), pointer :: CV
+
+        CV => multiCV_list(index)
+
+        do i = 1, CV%ncenters
+            do j = 1, CV%centers(i)%size
+                used_atoms_mask(CV%centers(i)%atoms(j)) = .true.
+            end do
+        end do
+
+    end subroutine set_multiCV_used_atoms_mask
+
+
     subroutine calculate_multiCV(index, x, value, gradient)
 
         integer, intent(in) :: index
         real*8, dimension(:), intent(in) :: x
         real*8, intent(out) :: value
-        real*8, dimension(:), intent(out) :: gradient
+        real*8, dimension(:), intent(inout) :: gradient
 
         integer :: i
         type(multiCV), pointer :: CV
@@ -99,7 +118,8 @@ contains
         do i = 1, CV%ncenters
             call set_xyz(i, centers, get_center(CV%centers(i)%atoms, x))
         end do
-        
+
+        centers_gradient = 0.
         select case (CV%CV_type)
             case (MBOND_TYPE)
                 call CV_bond(centers, (/ 1, 2 /), value, centers_gradient)
@@ -111,7 +131,6 @@ contains
                 call CV_pointplane(centers, (/ 1, 2, 3, 4 /), value, centers_gradient)
             end select
 
-        gradient = 0.
         do i = 1, CV%ncenters
             gradient = gradient + unpack_gradient(size(gradient) / 3, &
                                                   CV%centers(i)%atoms, &
