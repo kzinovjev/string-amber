@@ -393,6 +393,51 @@ contains
 		
 	end function matmulp
 	!================================
+
+
+
+	!================================
+	function pack_M(M)
+
+		real*8, dimension(nCV, nCV) :: M
+		real*8, dimension(msize) :: pack_M
+
+		integer :: i, j, k
+
+		k = 0
+
+		do i = 1, nCV
+			do j = 1, i
+				k = k + 1
+				pack_M(k) = M(i, j)
+			end do
+		end do
+
+	end function pack_M
+	!================================
+
+
+
+	!================================
+	function unpack_M(M)
+
+		real*8, dimension(msize) :: M
+		real*8, dimension(nCV, nCV) :: unpack_M
+
+		integer :: i, j, k
+
+		k = 0
+
+		do i = 1, nCV
+			do j = 1, i
+				k = k + 1
+				unpack_M(i, j) = M(k)
+				unpack_M(j, i) = M(k)
+			end do
+		end do
+
+	end function unpack_M
+	!================================
 	
 	
 	
