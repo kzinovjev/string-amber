@@ -19,7 +19,7 @@
 !===============================================================================
 module string_method
 
-#ifdef MPI
+!#ifdef MPI
 
     use molecule
     use CV_utilities
@@ -119,6 +119,8 @@ module string_method
     real*8  :: lambda !Inverse distance between two adjacent nodes
     logical :: remove_z_bias !Whether the bias on the orthogonal direction should be removed for path CV
     logical :: reweight_z
+    logical :: dump_pathCV_def !Once pathCV is defined for PMF stage, the definition is dumped to pathCV.def
+    logical :: read_pathCV_def !Read the definition of pathCV from pathCV.def (for PMF)
     real*8, dimension(:), allocatable :: arc !arc length upto each node (for path CV)
     real*8, dimension(:), allocatable :: force, PMF !mean force and PMF along the path (using path CV)
     real*8, dimension(:,:), allocatable :: path !set of equidistant points along the string (with extrapolation)
@@ -129,6 +131,12 @@ module string_method
     logical :: minimize !Whether the minimization (not dynamics) is performed
     integer :: nodes !Number of string nodes, node to take bias parameters from
     !----------------------
+
+    !---Grote-Hynes---
+    logical :: grote_hynes !Dump data for Grote-Hynes calculation
+    integer :: gh_period !GH data output period (timesteps)
+    integer :: gh_unit !Unit for Grote-Hynes data writing
+    !-----------------
 
 !==============================================================================
 contains
@@ -176,6 +184,10 @@ contains
                             params_file,&
                             remove_z_bias,&
                             reweight_z,&
+                            dump_pathCV_def,&
+                            read_pathCV_def,&
+                            grote_hynes,&
+                            gh_period,&
                             points_per_node,&
                             nbins,&
                             minimize,&
@@ -216,6 +228,11 @@ contains
         points_extra = -1
         remove_z_bias = .true.
         reweight_z = .true.
+        dump_pathCV_def = .false.
+        read_pathCV_def = .false.
+        grote_hynes = .false.
+        dump_pathCV_def = .false.
+        read_pathCV_def = .false.
         points_per_node = -1
         !------------------------
         
@@ -236,6 +253,9 @@ contains
     
         !Read CV definitions and calculate the initial values
         call prepare_CVs(trim(adjustl(CV_file)))
+
+        write(CV_frmt,*) nCV
+        CV_frmt = "("//trim(adjustl(CV_frmt))//"E15.5E2)"
 
         if (.not. minimize) then
             call mpi_comm_rank(commmaster, proc, ierr)
@@ -271,6 +291,7 @@ contains
             read_M = .true.
             rescale_forces = .false.
             if (remove_z_bias) force_constant_d = 0
+            generate_pos = .false.
         end if
         
         if ((preparation_steps > 0) .and. (step == 0)) step = -preparation_steps
@@ -306,8 +327,7 @@ contains
         dat_unit = -1
         call assign_dat_file
 
-        write(CV_frmt,*) nCV
-        CV_frmt = "("//trim(adjustl(CV_frmt))//"E15.5E2)"
+        if (grote_hynes) call assign_gh_file
         
         if (server) then
             call write_string(0)
@@ -465,9 +485,24 @@ contains
     
     end subroutine assign_dat_file
     !==================================================================
+
+
+
+    !==================================================================
+    subroutine assign_gh_file
+
+        character*80 :: snode, ext
+
+        write(snode,*) node
+        snode = adjustl(snode)
+
+        gh_unit = next_unit()
+        open(unit=gh_unit, file=trim(dir)//trim(snode)//".gh", access="append")
+    end subroutine assign_gh_file
+    !==================================================================
     
-    
-    
+
+
     !==================================================================
     subroutine string_calc(x, force, energy)
     
@@ -739,10 +774,46 @@ contains
             
             call get_s(CVs, s, z, Jacobian, grad_s, grad_z)
             energy = K_l(node)*0.5*(s-pos(node))**2 + K_d*0.5*merge(z, 0._8, z>0._8)**2
+
+            if (mod(step, gh_period) == 0) call calc_grote_hynes(grad_s)
+
             force = force - force_scale* &
                             (K_l(node)*(s-pos(node))*grad_s + K_d*merge(z, 0._8, z>0._8)*grad_z)
         
         end subroutine add_force_sz
+        !--------------------------
+
+
+        !--------------------------
+        subroutine calc_grote_hynes(grad_s)
+
+            use molecule, only : mol_info
+
+            real*8, dimension(natom*3), intent(in) :: grad_s
+
+            integer :: i
+            real*8 :: dqm2 !|dq|**2 in mass-weighted cartesians
+            real*8 :: mu !reduced mass
+            real*8 :: f_q !projection of external force on q
+            real*8 :: s, z !Not actually used, but needed as dummy
+            real*8, dimension(3) :: dq_dxi !dq / dx_i
+
+            dqm2 = 0._8
+            f_q = 0._8
+            call get_s(CVs, s, z, Jacobian, grad_s)
+
+            do i = 1, natom
+                dq_dxi = grad_s(:,i) * sqrt(mol_info%atom_mass(i))
+                dqm2 = dqm2 + sum(dq_dxi ** 2)
+                f_q = f_q + dot_product(full_force(:,i), 1. / dq_dxi)
+            end do
+
+            mu = 1._8 / dqm2
+
+            write(gh_unit,"(2F15.5)") mu, f_q
+            flush(gh_unit)
+
+        end subroutine calc_grote_hynes
         !--------------------------
         
         
@@ -1176,7 +1247,7 @@ contains
 
         if (pos(1) < -1) then !If interpolating for the first time, take equidistant points
             pos(node) = string_length*(node-1)/(nnodes-1)
-        else
+        else if (string_move) then
             !Rescale positions to the new string length
             pos(node) = pos(node)*string_length/pos(nnodes)
         end if
@@ -1269,7 +1340,7 @@ contains
         
         if (pos(1) < -1) then !If interpolating for the first time, take equidistant points
             pos(node) = string_length*(node-1)/(nnodes-1)
-        else
+        else if (.not. string_move) then !Don't change pos if doing PMF
             !Rescale positions to the new string length
             pos(node) = pos(node)*string_length/pos(nnodes)
         end if
@@ -1382,10 +1453,66 @@ contains
             Minv_point(:,i) = Minv(:,nnodes)
         end do
         !---------------------------------
+
+        if (.not. string_move .and. read_pathCV_def) call read_pathCV
+        if (.not. string_move .and. dump_pathCV_def .and. server) call write_pathCV
     
     end subroutine update_path
     !==================================================================
-    
+
+
+
+    !==================================================================
+    subroutine write_pathCV
+
+        integer :: i, u
+
+        u = next_unit()
+        open(unit=u, file="pathCV.def", status="replace")
+
+        write(u,"(2I5,F15.5)") nCV, npointstotal, lambda
+
+        write(u,"(F15.5)") arc
+        write(u,CV_frmt) path
+
+        do i = 1, npointstotal
+            write(u,CV_frmt) unpack_M(Minv_point(:, i))
+        end do
+
+        close(u)
+
+    end subroutine write_pathCV
+    !==================================================================
+
+
+
+    !==================================================================
+    subroutine read_pathCV
+
+        integer :: i, u, nCV_, npointstotal_
+        real*8, dimension(nCV, nCV) :: Mbuf
+
+        u = next_unit()
+        open(unit=u, file="pathCV.def", status="old")
+        read(u,*) nCV_, npointstotal_, lambda
+
+        if (nCV_ /= nCV) call write_error("Wrong number of CVs in pathCV.def")
+        if (npointstotal_ /= npointstotal) &
+            call write_error("Wrong number of path points in pathCV.def")
+
+        read(u,*) arc, path
+
+        do i = 1, npointstotal
+            read(u,*) Mbuf
+            Minv_point(:,i) = pack_M(Mbuf)
+        end do
+
+        close(u)
+
+    end subroutine read_pathCV
+    !==================================================================
+
+
 
 
     !==================================================================
