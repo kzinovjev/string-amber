@@ -19,7 +19,7 @@
 !===============================================================================
 module string_method
 
-!#ifdef MPI
+#ifdef MPI
 
     use molecule
     use CV_utilities
