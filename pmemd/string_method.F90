@@ -38,7 +38,7 @@ module string_method_mod
     private
     
     public :: string_define, string_calc, string_defined, minimize, &
-              grote_hynes, do_grote_hynes
+              do_grote_hynes
     
     save
 
