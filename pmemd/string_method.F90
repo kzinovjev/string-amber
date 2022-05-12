@@ -244,6 +244,7 @@ contains
         dump_pathCV_def = .false.
         read_pathCV_def = .false.
         grote_hynes = .false.
+        gh_period = 1
         points_per_node = -1
         !------------------------
         
@@ -838,11 +839,13 @@ contains
             use prmtop_dat_mod, only : atm_mass
 
             integer :: i, j
+            real*8 :: sqm !sqrt(m)
             real*8 :: dqm2 !|dq|**2 in mass-weighted cartesians
             real*8 :: mu !reduced mass
             real*8 :: f_q !projection of external force on q
             real*8 :: s, z !Not actually used, but needed as dummy
-            real*8, dimension(3) :: dq_dxi !dq / dx_i
+            real*8, dimension(3) :: dq_dxi !dq / dx_i mass-weighted
+            real*8, dimension(3) :: fi ! - dV / dx_i mass-weighted
             real*8, dimension(3,n_used_atoms) :: grad_s
 
             dqm2 = 0._8
@@ -851,12 +854,15 @@ contains
 
             do i = 1, n_used_atoms
                 j = used_atoms(i)
-                dq_dxi = grad_s(:,i) / sqrt(atm_mass(j))
+                sqm = sqrt(atm_mass(j))
+                dq_dxi = grad_s(:,i) / sqm
                 dqm2 = dqm2 + sum(dq_dxi ** 2)
-                f_q = f_q + dot_product(full_force(:,j), 1. / dq_dxi)
+                fi = full_force(:,j) / sqm
+                f_q = f_q + dot_product(fi, dq_dxi)
             end do
 
             mu = 1._8 / dqm2
+            f_q = f_q * mu
 
             write(gh_unit,"(2F15.5)") mu, f_q
             flush(gh_unit)
@@ -871,7 +877,7 @@ contains
     !==================================================================
     logical function do_grote_hynes()
 
-        do_grote_hynes = mod(step + 1, gh_period) == 0
+        do_grote_hynes = grote_hynes .and. mod(step + 1, gh_period) == 0
 
     end function do_grote_hynes
     !==================================================================
