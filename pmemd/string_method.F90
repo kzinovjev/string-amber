@@ -889,6 +889,8 @@ contains
 
             mu = 1._8 / dqm2
             f_q = f_q * mu
+            f_q_solute = f_q_solute * mu
+            f_q_solvent = f_q_solvent * mu
 
             write(gh_unit,"(4F15.5)") mu, f_q, f_q_solute, f_q_solvent
             flush(gh_unit)
