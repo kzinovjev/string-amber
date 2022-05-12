@@ -13,7 +13,8 @@
 !===============================================================================
 module CV_utilities_mod
 
-        use CV_module_mod, only : CV_bond, CV_angle, CV_dihedral, CV_pointplane
+        use CV_module_mod, only : CV_bond, CV_angle, CV_dihedral, &
+				                  CV_symdih, CV_asymdih, CV_pointplane
         use string_utilities_mod, only : next_unit, write_error
         use multiCV_module_mod
 
@@ -24,7 +25,7 @@ module CV_utilities_mod
 	
 	type CV
 		integer :: CV_type
-		integer, dimension(4) :: atoms
+		integer, dimension(8) :: atoms
 		real*8, dimension(2) :: box
 		logical :: periodic
 		real*8  :: period
@@ -50,7 +51,7 @@ contains
 		character(len=*), intent(in) :: filename
 		
 		integer :: i, u
-		integer, dimension(4) :: atoms
+		integer, dimension(8) :: atoms
 		real*8, dimension(2) :: box
 		character*20 :: COLVAR_type
 		character*200 :: atoms_file
@@ -79,6 +80,14 @@ contains
 					CV_list(i)%period = 360._8
 				case ("PPLANE")
 					CV_list(i)%CV_type = 4
+				case ("SYMDIH")
+					CV_list(i)%CV_type = 5
+					CV_list(i)%periodic = .true.
+					CV_list(i)%period = 360._8
+				case ("ASYMDIH")
+					CV_list(i)%CV_type = 6
+					CV_list(i)%periodic = .true.
+					CV_list(i)%period = 360._8
 				case ("MBOND")
 					CV_list(i)%CV_type = MBOND_TYPE
 					call prepare_multiCV(MBOND_TYPE, atoms_file, CV_list(i)%mindex)
@@ -136,7 +145,7 @@ contains
 	!================================
 	subroutine set_used_atoms_mask(index, used_atoms_mask)
 
-        integer, dimension(4), parameter :: N_CV_ATOMS = (/ 2, 3, 4, 4 /)
+        integer, dimension(6), parameter :: N_CV_ATOMS = (/ 2, 3, 4, 4, 8, 8 /)
 		integer, intent(in) :: index
 		logical, dimension(natom), intent(inout) :: used_atoms_mask
 
@@ -175,6 +184,10 @@ contains
 					call CV_dihedral( x, CV_list(i)%atoms, CVs(i), Jacobian(:,i) )
 				case (4)
 					call CV_pointplane( x, CV_list(i)%atoms, CVs(i), Jacobian(:,i) )
+				case (5)
+					call CV_symdih( x, CV_list(i)%atoms, CVs(i), Jacobian(:,i) )
+				case (6)
+					call CV_asymdih( x, CV_list(i)%atoms, CVs(i), Jacobian(:,i) )
 				case (MBOND_TYPE, MANGLE_TYPE, MDIHEDRAL_TYPE, MPPLANE_TYPE)
 					call calculate_multiCV(CV_list(i)%mindex, x, CVs(i), Jacobian(:,i) )
 				end select

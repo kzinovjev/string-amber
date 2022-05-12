@@ -3,7 +3,8 @@ module CV_module_mod
     use prmtop_dat_mod, only : ifbox
     use pbc_mod, only : pbc_box
 
-    public :: CV_bond, CV_angle, CV_dihedral, CV_pointplane, map_periodic
+    public :: CV_bond, CV_angle, CV_dihedral, &
+              CV_symdih, CV_asymdih, CV_pointplane, map_periodic
 	private
 contains
 
@@ -68,16 +69,94 @@ contains
         
     end subroutine CV_angle
     !-------------------------
-    
-    
-    
+
+
+
     !-------------------------
-    subroutine CV_dihedral( x, atm, dihedral, gradient ) !Taken from fdynamo 2.2 with minor changes
+    subroutine CV_dihedral( x, atm, dihedral, gradient )
 
         real*8, dimension(:), intent(in) :: x
         integer, dimension(4), intent(in) :: atm
         real*8, intent(out) :: dihedral
         real*8, dimension(:), intent(inout) :: gradient
+
+        integer :: i, j
+        real*8, dimension(3, 4) :: grad
+
+        call CV_dihedral_aux(x, atm, dihedral, grad)
+
+        do i = 1, 4
+            j = atm(i)*3
+            gradient(j-2:j) = gradient(j-2:j) + grad(:,i)
+        end do
+
+    end subroutine CV_dihedral
+    !-------------------------
+
+
+    !-------------------------
+    subroutine CV_symdih( x, atm, symdih, gradient )
+
+        real*8, dimension(:), intent(in) :: x
+        integer, dimension(8), intent(in) :: atm
+        real*8, intent(out) :: symdih
+        real*8, dimension(:), intent(inout) :: gradient
+
+        integer :: i, j, k
+        real*8 :: dih1, dih2
+        real*8, dimension(3, 4) :: grad1, grad2
+
+        call CV_dihedral_aux(x, atm(1:4), dih1, grad1)
+        call CV_dihedral_aux(x, atm(5:8), dih2, grad2)
+
+        symdih = dih1 + dih2
+        do i = 1, 4
+            j = atm(i)*3
+            gradient(j-2:j) = gradient(j-2:j) + grad1(:,i)
+            k = atm(i+4)*3
+            gradient(k-2:k) = gradient(k-2:k) + grad2(:,i)
+        end do
+
+    end subroutine CV_symdih
+    !-------------------------
+
+
+
+    !-------------------------
+    subroutine CV_asymdih( x, atm, asymdih, gradient )
+
+        real*8, dimension(:), intent(in) :: x
+        integer, dimension(8), intent(in) :: atm
+        real*8, intent(out) :: asymdih
+        real*8, dimension(:), intent(inout) :: gradient
+
+        integer :: i, j, k
+        real*8 :: dih1, dih2
+        real*8, dimension(3, 4) :: grad1, grad2
+
+        call CV_dihedral_aux(x, atm(1:4), dih1, grad1)
+        call CV_dihedral_aux(x, atm(5:8), dih2, grad2)
+
+        asymdih = dih1 - dih2
+        do i = 1, 4
+            j = atm(i)*3
+            gradient(j-2:j) = gradient(j-2:j) + grad1(:,i)
+            k = atm(i+4)*3
+            gradient(k-2:k) = gradient(k-2:k) - grad2(:,i)
+        end do
+
+    end subroutine CV_asymdih
+    !-------------------------
+    
+    
+    
+    !-------------------------
+    subroutine CV_dihedral_aux( x, atm, dihedral, grad ) !Taken from fdynamo 2.2 with minor changes
+
+        real*8, dimension(:), intent(in) :: x
+        integer, dimension(4), intent(in) :: atm
+        real*8, intent(out) :: dihedral
+        real*8, dimension(3,4), intent(out) :: grad
         real*8, dimension(3,4) :: xatm
         integer :: i
 
@@ -135,13 +214,12 @@ contains
         dtk = dtl * ( factkl - 1.0_8 ) - factij * dti
       
       ! . calculate the gradients.
-        gradient(atm(1)*3-2:atm(1)*3) = gradient(atm(1)*3-2:atm(1)*3) + dti * 57.295780_8
-        gradient(atm(2)*3-2:atm(2)*3) = gradient(atm(2)*3-2:atm(2)*3) + dtj * 57.295780_8
-        gradient(atm(3)*3-2:atm(3)*3) = gradient(atm(3)*3-2:atm(3)*3) + dtk * 57.295780_8
-        gradient(atm(4)*3-2:atm(4)*3) = gradient(atm(4)*3-2:atm(4)*3) + dtl * 57.295780_8
-        
-!         write(*,"(3F20.5)") dti*57.295780_8, dtj*57.295780_8, dtk*57.295780_8, dtl*57.295780_8
-!         flush(6)
+
+        grad(:,1) = dti
+        grad(:,2) = dtj
+        grad(:,3) = dtk
+        grad(:,4) = dtl
+        grad = grad * 57.295780_8
 
     contains
 
@@ -158,7 +236,7 @@ contains
         end function cross_product 
     
     
-    end subroutine CV_dihedral
+    end subroutine CV_dihedral_aux
     !-------------------------
 
     

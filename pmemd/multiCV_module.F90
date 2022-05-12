@@ -7,10 +7,10 @@ module multiCV_module_mod
               prepare_multiCV, set_multiCV_used_atoms_mask, calculate_multiCV
     private
 
-    integer, parameter :: MBOND_TYPE = 5, &
-                          MANGLE_TYPE = 6, &
-                          MDIHEDRAL_TYPE = 7, &
-                          MPPLANE_TYPE = 8
+    integer, parameter :: MBOND_TYPE = 7, &
+                          MANGLE_TYPE = 8, &
+                          MDIHEDRAL_TYPE = 9, &
+                          MPPLANE_TYPE = 10
 
     integer, dimension(MBOND_TYPE:MPPLANE_TYPE) :: TYPE_NCENTERS = (/ 2, 3, 4, 4 /)
     real*8, dimension(12) :: centers, centers_gradient
