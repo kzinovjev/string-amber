@@ -488,7 +488,7 @@ contains
         if (.not. minimize) call mpi_barrier(commmaster, ierr)
         dat_unit = next_unit()
         open(unit=dat_unit, file=trim(dir)//trim(snode)//trim(ext), access="append")
-        if (.not. string_move .and. .not. exist) write(dat_unit,"(4E15.5E2)") K_l(node), pos(node), K_d, 0._8 !In case WHAM will be used
+        if (.not. string_move .and. .not. exist) write(dat_unit,"(4E15.6E2)") K_l(node), pos(node), K_d, 0._8 !In case WHAM will be used
     
     end subroutine assign_dat_file
     !==================================================================
@@ -667,7 +667,7 @@ contains
         !--------------------------
         subroutine write_dat
             call to_period(string)
-            if (.not. string_move) write(dat_unit,"(2E15.5E2)",advance="no") s, z
+            if (.not. string_move) write(dat_unit,"(2E15.6E2)",advance="no") s, z
             write(dat_unit,CV_frmt,advance="no") CVs
             write(dat_unit,CV_frmt,advance="no") string(:,node)
             write(dat_unit,CV_frmt) dz_tmp/gamma
