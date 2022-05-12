@@ -792,23 +792,29 @@ contains
             real*8, dimension(natom*3), intent(in) :: grad_s
 
             integer :: i
+            real*8 :: sqm !sqrt(m)
             real*8 :: dqm2 !|dq|**2 in mass-weighted cartesians
             real*8 :: mu !reduced mass
             real*8 :: f_q !projection of external force on q
+            real*8 :: fi_q !projection of fi on q
             real*8 :: s, z !Not actually used, but needed as dummy
-            real*8, dimension(3) :: dq_dxi !dq / dx_i
+            real*8, dimension(3) :: dq_dxi !dq / dx_i mass-weighted
+            real*8, dimension(3) :: fi ! - dV / dx_i mass-weighted
 
             dqm2 = 0._8
             f_q = 0._8
-            call get_s(CVs, s, z, Jacobian, grad_s)
 
             do i = 1, natom
-                dq_dxi = grad_s(:,i) * sqrt(mol_info%atom_mass(i))
+                sqm = sqrt(1. / mol_info%atom_mass(i))
+                dq_dxi = grad_s(i*3-2:i*3) / sqm
                 dqm2 = dqm2 + sum(dq_dxi ** 2)
-                f_q = f_q + dot_product(full_force(:,i), 1. / dq_dxi)
+                fi = force(i*3-2:i*3) / sqm
+                fi_q = dot_product(fi, dq_dxi)
+                f_q = f_q + fi_q
             end do
 
             mu = 1._8 / dqm2
+            f_q = f_q * mu
 
             write(gh_unit,"(2F15.5)") mu, f_q
             flush(gh_unit)
