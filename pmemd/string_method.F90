@@ -713,10 +713,10 @@ contains
             call mpi_bcast(av_step, 1, mpi_integer, 0, commmaster, ierr)
             
             if ((stop_step > -1) .and. (step .ge. stop_step)) then
-                string_move = .false.
                 step = 0
                 call average_string(av_step, stop_step) !average of string and parameters
                                                         !is taken over [av_step:stop_step]
+                string_move = .false.
                 if (remove_z_bias) K_d = 0._8
                 call assign_dat_file
                 REX_hist = 0
