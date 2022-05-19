@@ -139,8 +139,6 @@ module string_method_mod
     logical :: grote_hynes !Dump data for Grote-Hynes calculation
     integer :: gh_period !GH data output period (timesteps)
     integer :: gh_unit !Unit for Grote-Hynes data writing
-    logical :: gh_split_solvent !Whether to split forces into solute/solvent contributions
-    integer :: gh_solvent_index !Index of the first atom of the solvent
     !-----------------
 
 !==============================================================================
@@ -191,8 +189,6 @@ contains
                             read_pathCV_def,&
                             grote_hynes,&
                             gh_period,&
-                            gh_split_solvent,&
-                            gh_solvent_index,&
                             points_per_node,&
                             nbins,&
                             minimize,&
@@ -253,8 +249,6 @@ contains
         !---Grote-Hynes default values---
         grote_hynes = .false.
         gh_period = 1
-        gh_split_solvent = .false.
-        gh_solvent_index = 0
         !--------------------------------
         
         !---String movement default values---
@@ -343,12 +337,7 @@ contains
         dat_unit = -1
         call assign_dat_file
 
-        if (grote_hynes) then
-            if (gh_split_solvent .and. gh_solvent_index == 0) then
-                call write_error("Using split_solvent but solvent_index is not provided")
-            end if
-            call assign_gh_file
-        end if
+        if (grote_hynes) call assign_gh_file
         
         if (server) then
             call write_string(0)
@@ -858,7 +847,6 @@ contains
             real*8 :: mu !reduced mass
             real*8 :: f_q !projection of external force on q
             real*8 :: fi_q !projection of fi on q
-            real*8 :: f_q_solvent, f_q_solute ! Decomposition of fq
             real*8 :: s, z !Not actually used, but needed as dummy
             real*8, dimension(3) :: dq_dxi !dq / dx_i mass-weighted
             real*8, dimension(3) :: fi ! - dV / dx_i mass-weighted
@@ -866,8 +854,6 @@ contains
 
             dqm2 = 0._8
             f_q = 0._8
-            f_q_solvent = 0._8
-            f_q_solute = 0._8
             call get_s(CVs, s, z, Jacobian, grad_s)
 
             do i = 1, n_used_atoms
@@ -878,21 +864,12 @@ contains
                 fi = full_force(:,j) / sqm
                 fi_q = dot_product(fi, dq_dxi)
                 f_q = f_q + fi_q
-                if (gh_split_solvent) then
-                    if (j < gh_solvent_index) then
-                        f_q_solute = f_q_solute + fi_q
-                    else
-                        f_q_solvent = f_q_solvent + fi_q
-                    end if
-                end if
             end do
 
             mu = 1._8 / dqm2
             f_q = f_q * mu
-            f_q_solute = f_q_solute * mu
-            f_q_solvent = f_q_solvent * mu
 
-            write(gh_unit,"(4F15.5)") mu, f_q, f_q_solute, f_q_solvent
+            write(gh_unit,"(4F15.5)") mu, f_q
             flush(gh_unit)
 
         end subroutine calc_grote_hynes
