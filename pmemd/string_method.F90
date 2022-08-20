@@ -852,6 +852,8 @@ contains
             real*8, dimension(3) :: fi ! - dV / dx_i mass-weighted
             real*8, dimension(3,n_used_atoms) :: grad_s
 
+            character*20 :: frmt
+
             dqm2 = 0._8
             f_q = 0._8
             call get_s(CVs, s, z, Jacobian, grad_s)
@@ -869,7 +871,10 @@ contains
             mu = 1._8 / dqm2
             f_q = f_q * mu
 
-            write(gh_unit,"(4F15.5)") mu, f_q
+            write(frmt,*) n_used_atoms * 3 + 2
+            frmt = "("//trim(adjustl(frmt))//"E15.5E2)"
+
+            write(gh_unit,frmt) mu, f_q, grad_s
             flush(gh_unit)
 
         end subroutine calc_grote_hynes
