@@ -141,6 +141,8 @@ module string_method_mod
     integer :: gh_unit !Unit for Grote-Hynes data writing
     !-----------------
 
+    logical :: gpu_shuttle !Whether to use gpu_shuttle for GPU<->CPU data transfer
+
 !==============================================================================
 contains
 !==============================================================================
@@ -193,7 +195,8 @@ contains
                             nbins,&
                             minimize,&
                             nodes,&
-                            node
+                            node,&
+                            gpu_shuttle
 
         inquire(file = "STRING", exist=string_defined)
         if (.not. string_defined) return
