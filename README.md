@@ -1,3 +1,8 @@
+> :warning: A string interpolation bug was introduced in May 2022, but the fix wasn't 
+> released to the main branch. If you get nonsensical values in the last node in 
+> `0_final.string`/`0_final_CV.string`, please, reinstall ASM using the current 
+> version of the code.
+
 # string-amber
 Adaptive string method implementation in sander (AmberTools 21.3)
 
