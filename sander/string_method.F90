@@ -775,7 +775,7 @@ contains
             call get_s(CVs, s, z, Jacobian, grad_s, grad_z)
             energy = K_l(node)*0.5*(s-pos(node))**2 + K_d*0.5*merge(z, 0._8, z>0._8)**2
 
-            if (mod(step, gh_period) == 0) call calc_grote_hynes(grad_s)
+            if (grote_hynes .and. mod(step, gh_period) == 0) call calc_grote_hynes(grad_s)
 
             force = force - force_scale* &
                             (K_l(node)*(s-pos(node))*grad_s + K_d*merge(z, 0._8, z>0._8)*grad_z)
