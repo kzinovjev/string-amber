@@ -1,21 +1,21 @@
-FROM ubuntu:21.04
+FROM ubuntu:22.04
 
 RUN apt-get update; \
     DEBIAN_FRONTEND=noninteractive; \
     apt-get install -y --no-install-recommends \
-        bzip2=1.0.8-4ubuntu3 cmake=3.18.4-2ubuntu1 csh=20110502-6 \
-        make=4.3-4ubuntu1 gcc=4:10.3.0-1ubuntu1 gfortran=4:10.3.0-1ubuntu1 \
-        g++=4:10.3.0-1ubuntu1 flex=2.6.4-8 bison=2:3.7.5+dfsg-1 \
-        patch=2.7.6-7 bc=1.07.1-2build2 libbz2-dev=1.0.8-4ubuntu3 \
-        wget=1.21-1ubuntu3 openmpi-bin=4.1.0-7ubuntu2 \
-        libopenmpi-dev=4.1.0-7ubuntu2 openssh-client=1:8.4p1-5ubuntu1 \
-        ca-certificates=20210119build1 git=1:2.30.2-1ubuntu1
+        bzip2=1.0.8-5build1 cmake=3.22.1-1ubuntu1.22.04.1 csh=20110502-7 \
+        make=4.3-4.1build1 gcc=4:11.2.0-1ubuntu1 gfortran=4:11.2.0-1ubuntu1 \
+        g++=4:11.2.0-1ubuntu1 flex=2.6.4-8build2 bison=2:3.8.2+dfsg-1build1 \
+        patch=2.7.6-7build2 bc=1.07.1-3build1 libbz2-dev=1.0.8-5build1 \
+        wget=1.21.2-2ubuntu1 openmpi-bin=4.1.2-2ubuntu1 \
+        libopenmpi-dev=4.1.2-2ubuntu1 openssh-client=1:8.9p1-3 \
+        ca-certificates=20211016ubuntu0.22.04.1 git=1:2.34.1-1ubuntu1.5
 
 WORKDIR /usr/bin
-COPY AmberTools21.tar.bz2 .
-RUN tar xjvf AmberTools21.tar.bz2 && rm AmberTools21.tar.bz2
+COPY AmberTools22.tar.bz2 .
+RUN tar xjvf AmberTools22.tar.bz2 && rm AmberTools22.tar.bz2
 
-WORKDIR amber20_src
+WORKDIR amber22_src
 RUN git clone https://github.com/kzinovjev/string-amber
 RUN cp string-amber/lapack/* AmberTools/src/lapack/
 RUN cp string-amber/sander/* AmberTools/src/sander/
@@ -25,5 +25,5 @@ WORKDIR build
 RUN chmod +x run_cmake
 RUN ./run_cmake
 RUN make -j 4 install
-RUN echo "source /usr/bin/amber20/amber.sh" >> /etc/bash.bashrc
+RUN echo "source /usr/bin/amber22/amber.sh" >> /etc/bash.bashrc
 SHELL ["/bin/bash", "-c"]

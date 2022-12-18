@@ -29,6 +29,9 @@ subroutine sander()
 #ifdef QUICK
   use quick_module, only: quick_finalize
 #endif
+#ifdef TCPB
+  use tcpb_module, only: tcpb_finalize
+#endif
 #ifdef MPI
   use qmmm_module, only : qmmm_nml, qmmm_struct, deallocate_qmmm, qmmm_mpi, &
                           qm2_struct, qmmm_vsolv, qm2_params, qmmm_mpi_setup
@@ -86,8 +89,6 @@ subroutine sander()
 #ifdef APBS
   use apbs
 #endif /* APBS */
-
-  use xray_interface_module, only: xray_active, xray_init, xray_read_parm, xray_fini
 
 #ifdef MPI /* SOFT CORE */
   use softcore, only: setup_sc, cleanup_sc, ifsc, extra_atoms, sc_sync_x, &
@@ -422,7 +423,6 @@ subroutine sander()
         ! ntf and ntc get reset if this is an amoeba prmtop
         call AMOEBA_readparm(8, ntf, ntc, natom, x(lmass))
         if ( ipgm /= 0 ) call POL_GAUSS_readparm(8, natom)
-        if ( xray_active ) call xray_read_parm(8,6)
       end if
 
       call sebomd_setup
@@ -691,7 +691,6 @@ subroutine sander()
           call apbs_init(natom, x(lcrd), x(l15), x(l97))
         end if
 #endif /* APBS */
-        call xray_init()
 
         ! Set the initial velocities
         if (ntx <= 3) then
@@ -1531,7 +1530,7 @@ subroutine sander()
 
     ! Prepare for SGLD simulation
     if (isgld > 0) then
-      call psgld(natom,x(lmass),x(lvel), rem)
+      call psgld(natom,ix(i08), ix(i10), x(lmass),x(lcrd),x(lvel), rem)
     end if
 
     ! Prepare for EMAP constraints
@@ -1882,7 +1881,6 @@ subroutine sander()
   ! End of this PUPIL interface block
 
   ! Finalize X-ray refinement work
-  call xray_fini()
   call amflsh(6)
 
   if (master) then
@@ -1959,6 +1957,11 @@ subroutine sander()
 #ifdef QUICK
   if (qmmm_nml%ifqnt .and. qmmm_nml%qmtheory%ISQUICK) then
     call quick_finalize()
+  endif
+#endif
+#ifdef TCPB
+  if (qmmm_nml%ifqnt .and. qmmm_nml%qmtheory%ISTCPB) then
+    call tcpb_finalize()
   endif
 #endif
   if (qmmm_nml%ifqnt .and. .not. qmmm_struct%qm_mm_first_call) then

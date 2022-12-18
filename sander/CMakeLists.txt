@@ -37,9 +37,6 @@ set(SANDER_COMMON_SOURCE resamplekin.F90 boost-gamma-distribution.cpp les.F90 st
 
 set(EMIL_SOURCE emil.F90 mdin_emil_dat.F90)
 
-set(XRAY_SOURCE xray_fftpack.F90 xray_FFT.F90 xray_fourier.F90 xray_globals.F90
-	xray_interface.F90 xray_real_space.F90 xray_reciprocal_space.F90 xray_utils.F90)
-
 set(SEBOMD_SOURCE sebomd_module.F90 sebomd_arrays.F90)
 
 #Sources only built into certain executables
@@ -99,14 +96,14 @@ set(QM_SOURCE qm_mm.F90 qm_ewald.F90 qmmm_vsolv.F90
     ArrayList.c qm2_extern_gms_module.F90 qm2_extern_tc_module.F90 qm2_extern_gau_module.F90 qm2_extern_mrcc_module.F90
     qm2_extern_orc_module.F90 qm2_extern_nw_module.F90 qm2_extern_qc_module.F90 qm2_extern_reaxff_puremd_module.F90
     qm2_extern_quick_module.F90 qm2_extern_genmpi_module.F90
-    qmmm_adaptive_module.F90 prn_qmmm_dipole.F90 quick_module.F90)
+    qmmm_adaptive_module.F90 prn_qmmm_dipole.F90 quick_module.F90 tcpb_module.F90)
 
 set(QM_API_SOURCE qm_ewald.F90 qmmm_vsolv.F90
     qm2_extern_util_module.F90 qm2_extern_module.F90 qm2_extern_adf_module.F90 qm2_read_adf_results.c KFReader.c
     ArrayList.c qm2_extern_gms_module.F90 qm2_extern_tc_module.F90 qm2_extern_gau_module.F90 qm2_extern_mrcc_module.F90
     qm2_extern_orc_module.F90 qm2_extern_nw_module.F90 qm2_extern_qc_module.F90 qm2_extern_reaxff_puremd_module.F90
     qm2_extern_quick_module.F90 qm2_extern_genmpi_module.F90
-    qmmm_adaptive_module.F90 prn_qmmm_dipole.F90 quick_module.F90)
+    qmmm_adaptive_module.F90 prn_qmmm_dipole.F90 quick_module.F90 tcpb_module.F90)
 
 set(API_SOURCE  nose_hoover_init.F90
     lmod.F90 egb.F90
@@ -195,7 +192,7 @@ set(LES_SOURCE nose_hoover_init_LES.F90
     qm2_extern_qc_module.F90 qm2_extern_reaxff_puremd_module.F90
     qm2_extern_quick_module.F90 qm2_extern_genmpi_module.F90 qmmm_adaptive_module.F90
     prn_qmmm_dipole.F90 binrestart.F90 getcor.F90 mdfil.F90 mdwrit.F90
-    lmod.F90 trajene.F90 ew_box.F90 minrit.F90 set.F90 qm_mm.F90 amd.F90 scaledMD.F90 quick_module.F90)
+    lmod.F90 trajene.F90 ew_box.F90 minrit.F90 set.F90 qm_mm.F90 amd.F90 scaledMD.F90 quick_module.F90 tcpb_module.F90)
 
 #mm code and miscellaneous files
 set(MM_SOURCE  force.F90 nose_hoover_init.F90
@@ -238,7 +235,7 @@ endif()
 #List of all Fortran sources, for setting flags
 set(ALL_FORTRAN_SOURCES ${SANDER_COMMON_SOURCE} ${LES_SOURCE} ${PUPIL_SOURCE} ${LES_API_SOURCE}
 	${API_SOURCE} ${MM_SOURCE} ${QM_SOURCE} ${QM_API_SOURCE} ${APBS_SOURCE} ${EVB_SOURCE} ${EVB_PIMD_SOURCE}
-	${SEBOMD_SOURCE} ${XRAY_SOURCE} ${AMBMASK_SOURCE} ${EMIL_SOURCE})
+	${SEBOMD_SOURCE} ${AMBMASK_SOURCE} ${EMIL_SOURCE})
 
 apply_optimization_declarations(${ALL_FORTRAN_SOURCES})
 
@@ -267,6 +264,11 @@ endif()
 if(BUILD_QUICK)
     # Enable QUICK for everything
     add_definitions(-DQUICK)
+endif()
+
+if(BUILD_TCPB)
+    # Enable TCPB for everything
+    add_definitions(-DTCPB)
 endif()
 
 if(BUILD_REAXFF_PUREMD)
@@ -329,7 +331,7 @@ set(LIBRARIES "")
 #note: some of the link libraries sander depends on use its modules.
 #so, we build all of the regular sander source into an object library, go build those libraries, then link everything.
 
-add_library(sander_base_obj OBJECT ${SANDER_COMMON_SOURCE} ${MM_SOURCE} ${QM_SOURCE} ${EMIL_SOURCE} ${SEBOMD_SOURCE} ${XRAY_SOURCE} ${PLUMED_SOURCE})
+add_library(sander_base_obj OBJECT ${SANDER_COMMON_SOURCE} ${MM_SOURCE} ${QM_SOURCE} ${EMIL_SOURCE} ${SEBOMD_SOURCE} ${PLUMED_SOURCE})
 config_module_dirs(sander_base_obj ${SANDER_COMMON_MOD_DIR} ${SQMLIB_MOD_DIR} ${RISMLIB_SANDER_INTERFACE_DIR} ${RISMLIB_MOD_DIR} ${AMBER_COMMON_MOD_DIR} ${LIBPBSA_MOD_DIR} ${NETCDF_FORTRAN_MOD_DIR} ${QUICK_SERIAL_MOD_DIR})
 add_dependencies(sander_base_obj libsqm sff_fortran netcdff libpbsa)
 target_include_directories(sander_base_obj PUBLIC $<TARGET_PROPERTY:boost_headers,INTERFACE_INCLUDE_DIRECTORIES>)
@@ -347,7 +349,7 @@ list(APPEND EXECUTABLES sander)
 if(BUILD_SANDER_PUPIL)
 	#sander pupil executable
 	add_executable(sander.PUPIL ${SANDER_COMMON_SOURCE} ${RISM_SANDER_IFACE}
-		${PUPIL_SOURCE} ${QM_SOURCE} ${EMIL_SOURCE} ${SEBOMD_SOURCE} ${XRAY_SOURCE} ${PLUMED_SOURCE})
+		${PUPIL_SOURCE} ${QM_SOURCE} ${EMIL_SOURCE} ${SEBOMD_SOURCE} ${PLUMED_SOURCE})
 	target_link_libraries(sander.PUPIL pupil::pupil)
 	set_property(TARGET sander.PUPIL APPEND PROPERTY COMPILE_DEFINITIONS PUPIL_SUPPORT)
 	config_module_dirs(sander.PUPIL ${PUPIL_MOD_DIR} ${SQMLIB_MOD_DIR} ${RISMLIB_SANDER_INTERFACE_DIR} ${RISMLIB_MOD_DIR} ${AMBER_COMMON_MOD_DIR} ${LIBPBSA_MOD_DIR} ${NETCDF_FORTRAN_MOD_DIR} ${QUICK_SERIAL_MOD_DIR})
@@ -359,7 +361,7 @@ endif()
 
 if(BUILD_SANDER_LES)
 	add_executable(sander.LES ${SANDER_COMMON_SOURCE} ${RISM_SANDER_IFACE}
-		${LES_SOURCE} ${XRAY_SOURCE} ${EMIL_SOURCE} ${SEBOMD_SOURCE} ${PLUMED_SOURCE})
+		${LES_SOURCE} ${EMIL_SOURCE} ${SEBOMD_SOURCE} ${PLUMED_SOURCE})
 	target_compile_definitions(sander.LES PRIVATE LES)
 	config_module_dirs(sander.LES ${LES_MOD_DIR} ${SQMLIB_MOD_DIR} ${RISMLIB_SANDER_INTERFACE_DIR} ${RISMLIB_MOD_DIR} ${AMBER_COMMON_MOD_DIR} ${LIBPBSA_MOD_DIR} ${NETCDF_FORTRAN_MOD_DIR} ${QUICK_SERIAL_MOD_DIR})
 	list(APPEND EXECUTABLES sander.LES)
@@ -374,7 +376,7 @@ endif()
 
 if(BUILD_SANDER_APBS)
 	add_executable(sander.APBS ${SANDER_COMMON_SOURCE} ${RISM_SANDER_IFACE}
-		${APBS_SOURCE} ${QM_SOURCE} ${XRAY_SOURCE} ${SEBOMD_SOURCE} ${EMIL_SOURCE} ${PLUMED_SOURCE})
+		${APBS_SOURCE} ${QM_SOURCE} ${SEBOMD_SOURCE} ${EMIL_SOURCE} ${PLUMED_SOURCE})
 	target_link_libraries(sander.APBS apbs)
 	target_compile_definitions(sander.APBS PRIVATE APBS)
 	config_module_dirs(sander.APBS ${APBS_MOD_DIR} ${SQMLIB_MOD_DIR} ${RISMLIB_SANDER_INTERFACE_DIR} ${RISMLIB_MOD_DIR} ${AMBER_COMMON_MOD_DIR} ${LIBPBSA_MOD_DIR} ${NETCDF_FORTRAN_MOD_DIR} ${QUICK_SERIAL_MOD_DIR})
@@ -394,7 +396,7 @@ install(TARGETS ambmask DESTINATION ${BINDIR})
 # sander API
 if(BUILD_SANDER_API)
 	add_library(libsander ${SANDER_COMMON_SOURCE} ${RISM_SANDER_IFACE}
-		${API_SOURCE} ${QM_API_SOURCE} ${EMIL_SOURCE} ${SEBOMD_SOURCE} ${XRAY_SOURCE} ${PLUMED_SOURCE})
+		${API_SOURCE} ${QM_API_SOURCE} ${EMIL_SOURCE} ${SEBOMD_SOURCE} ${PLUMED_SOURCE})
 	list(APPEND LIBRARIES libsander)
 	target_compile_definitions(libsander PRIVATE API)
 	config_module_dirs(libsander ${API_MOD_DIR} ${SQMLIB_MOD_DIR} ${RISMLIB_SANDER_INTERFACE_DIR} ${RISMLIB_MOD_DIR} ${AMBER_COMMON_MOD_DIR} ${LIBPBSA_MOD_DIR} ${NETCDF_FORTRAN_MOD_DIR} ${QUICK_SERIAL_MOD_DIR})
@@ -411,7 +413,7 @@ endif()
 if(BUILD_SANDER_LES AND BUILD_SANDER_API)
 
 	add_library(libsanderles ${SANDER_COMMON_SOURCE} ${RISM_SANDER_IFACE}
-		${LES_API_SOURCE} ${QM_API_SOURCE} ${EMIL_SOURCE} ${XRAY_SOURCE} ${PLUMED_SOURCE} ${SEBOMD_SOURCE})
+		${LES_API_SOURCE} ${QM_API_SOURCE} ${EMIL_SOURCE} ${PLUMED_SOURCE} ${SEBOMD_SOURCE})
 	list(APPEND LIBRARIES libsanderles)
 	target_compile_definitions(libsanderles PRIVATE LES API)
 	config_module_dirs(libsanderles ${LESAPI_MOD_DIR} ${SQMLIB_MOD_DIR} ${RISMLIB_SANDER_INTERFACE_DIR} ${RISMLIB_MOD_DIR} ${AMBER_COMMON_MOD_DIR} ${LIBPBSA_MOD_DIR} ${NETCDF_FORTRAN_MOD_DIR} ${QUICK_SERIAL_MOD_DIR})
@@ -497,14 +499,14 @@ endif()
 set_property(TARGET ${EXECUTABLES} ${MPI_EXECUTABLES} ${CUDA_EXECUTABLES} ${CUDA_MPI_EXECUTABLES} ${OPENMP_EXECUTABLES} ${LIBRARIES} PROPERTY LINKER_LANGUAGE Fortran)
 
 # Serial libraries
-targets_link_libraries(${EXECUTABLES} ${CUDA_EXECUTABLES} ${OPENMP_EXECUTABLES} ${LIBRARIES} LIBRARIES emil sff_fortran pbsa_sander sebomd netlib amber_common netcdff netcdf)
+targets_link_libraries(${EXECUTABLES} ${CUDA_EXECUTABLES} ${OPENMP_EXECUTABLES} ${LIBRARIES} LIBRARIES emil sff_fortran pbsa_sander sebomd netlib amber_common netcdff netcdf ${KMMD_LIB})
 if(USE_FFT)
 	targets_link_libraries(${EXECUTABLES} ${CUDA_EXECUTABLES} ${OPENMP_EXECUTABLES} ${LIBRARIES} LIBRARIES rism fftw)
 endif()
 
 # MPI libraries
 if(MPI)
-    targets_link_libraries(${MPI_EXECUTABLES} ${CUDA_MPI_EXECUTABLES} LIBRARIES emil_mpi sff_fortran_mpi libsqm_mpi pbsa_sander_mpi sebomd_mpi netlib amber_common netcdff netcdf)
+	targets_link_libraries(${MPI_EXECUTABLES} ${CUDA_MPI_EXECUTABLES} LIBRARIES emil_mpi sff_fortran_mpi libsqm_mpi pbsa_sander_mpi sebomd_mpi netlib amber_common netcdff netcdf ${KMMD_LIB})
 
     if(USE_FFT)
         targets_link_libraries(${MPI_EXECUTABLES} ${CUDA_MPI_EXECUTABLES} LIBRARIES rism_mpi fftw fftw_mpi)
@@ -532,13 +534,53 @@ if(BUILD_QUICK)
             targets_link_libraries(${CUDA_MPI_EXECUTABLES} LIBRARIES  libquick_mpi_cuda)
         endif()
     endif()
-
 endif()
 
-# reaxff-puremd (QMMM)
+# TCPB
+if(BUILD_TCPB)
+    targets_link_libraries(${EXECUTABLES} ${OPENMP_EXECUTABLES} ${LIBRARIES} LIBRARIES libtcpb)
+    add_dependencies(sander_base_obj libtcpb)
+
+    if(MPI)
+        targets_link_libraries(${MPI_EXECUTABLES} LIBRARIES libtcpb)
+        add_dependencies(sander_base_obj_mpi libtcpb)
+    endif()
+
+    if(OPENMP)
+        add_dependencies(sander_base_obj_omp libtcpb)
+    endif()
+
+    if(CUDA AND BUILD_QUICK)
+        targets_link_libraries(${CUDA_EXECUTABLES} LIBRARIES libtcpb)
+        if(MPI)
+            targets_link_libraries(${CUDA_MPI_EXECUTABLES} LIBRARIES libtcpb)
+        endif()
+    endif()
+endif()
+
+# reaxff-puremd
 if(BUILD_REAXFF_PUREMD)
-    # Link to appropriate reaxff-puremd lib
-    targets_link_libraries(${EXECUTABLES} ${OPENMP_EXECUTABLES} ${LIBRARIES} LIBRARIES libspuremd)
+    # ${EXECUTABLES} always contains at least the sander executable
+    targets_link_libraries(${EXECUTABLES} LIBRARIES libspuremd)
+
+    if(NOT LIBRARIES STREQUAL "")
+        targets_link_libraries(${LIBRARIES} LIBRARIES libspuremd)
+    endif()
+
+    if(OPENMP AND NOT OPENMP_EXECUTABLES STREQUAL "")
+        targets_link_libraries(${OPENMP_EXECUTABLES} LIBRARIES libspuremd)
+    endif()
+
+    if(MPI)
+        targets_link_libraries(${MPI_EXECUTABLES} LIBRARIES libspuremd)
+    endif()
+
+    if(CUDA AND NOT CUDA_EXECUTABLES STREQUAL "")
+        targets_link_libraries(${CUDA_EXECUTABLES} LIBRARIES libspuremd)
+	if(MPI AND NOT CUDA_MPI_EXECUTABLES STREQUAL "")
+            targets_link_libraries(${CUDA_MPI_EXECUTABLES} LIBRARIES libspuremd)
+        endif()
+    endif()
 endif()
 
 # Boost headers

@@ -40,7 +40,8 @@ set(LAPACK_SOURCES
 	iparmq.f iladlc.f iladlr.f 
 	dlatrs.f drscl.f dlantr.f dgecon.f dgeequ.f dlaqge.f dgesvx.f 
 	chla_transtype.f ilatrans.f ilaprec.f 
-	dlascl2.f dgeequb.f ilazlr.f ilazlc.f dtrsen.f dtrsyl.f dpotri.f)
+	dlascl2.f dgeequb.f ilazlr.f ilazlc.f dtrsen.f dtrsyl.f
+	dtrti2.f dtrtri.f dgetri.f dpotri.f)
 
 	#source files from the above list that should be built without optimizations
 set(UNOPTIMIZED_SOURCES dlamch.f)

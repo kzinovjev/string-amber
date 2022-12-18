@@ -111,10 +111,6 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
                              energy_vdw0, cn1_lrt, cn2_lrt, crg_m0, crg_w0, &
                              do_lrt, f_scratch, lrt_solute_sasa
   use cns_xref
-  use xray_interface_module, only: xray_get_derivative, xray_active
-#ifdef USE_ISCALE
-  use xray_globals_module, only: atom_bfactor
-#endif
 
   ! CHARMM Force Field Support
   use charmm_mod, only: charmm_active, charmm_calc_impropers, &
@@ -190,6 +186,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
 #include "flocntrl.h"
   integer istart, iend
   _REAL_ evdwex, eelex
+  _REAL_ eextpot
   _REAL_ enemap
   _REAL_ xray_e
 
@@ -315,12 +312,13 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   end if
 
   ! Zero out the energies and forces
-  enoe = 0.d0
-  aveper = 0.d0
-  aveind = 0.d0
-  avetot = 0.d0
+  enoe    = 0.d0
+  eextpot = 0.d0
+  aveper  = 0.d0
+  aveind  = 0.d0
+  avetot  = 0.d0
   dipiter = 0.d0
-  dvdl = 0.d0
+  dvdl    = 0.d0
   dipole_temp = 0.d0
   enmr(1:6) = 0.d0
   enfe = 0.d0
@@ -387,37 +385,6 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
                 nimprp, nphb, natom, natom, ntypes, nres, rad, wel, radhb, &
                 welhb, rwell, tgtrmsd, temp0les, -1, 'WEIT')
   end if
-
-! If calling an External library
-if (iextpot .gt. 0) then
-#ifdef MPI
-  if (sanderrank .eq. 0) then
-#endif /* MPI */
-    if (igb == 0) then
-      call pme_external(x, f, ener%pot%tot)
-    else
-      call gb_external(x, f, ener%pot%tot)
-    endif
-    if (nmropt > 0) then
-      call nmrcal(x, f, ih(m04), ih(m02), ix(i02), xx(lwinv), enmr, devdis, &
-                  devang, devtor, devplpt, devpln, devgendis, temp0, tautp, &
-                  cut, xx(lnmr01), ix(inmr02), xx(l95), 31, 6, rk, tk, pk, cn1, &
-                  cn2, asol, bsol, xx(l15), numbnd, numang, nptra-nimprp, &
-                  nimprp, nphb, natom, natom, ntypes, nres, rad, wel, radhb, &
-                  welhb, rwell, tgtrmsd, temp0les, -1, 'CALC')
-    end if
-    if (natc > 0 .and. ntr==1) then   ! ntr=1 (positional restraints)
-      call xconst(natc, entr, ix(icnstrgp), x, f, xx(lcrdr), xx(l60))
-    end if
-    ener%pot%constraint = + sum(enmr(1:6)) + entr + enfe
-    ener%pot%tot = ener%pot%tot + sum(enmr(1:6)) + entr + enfe
-#ifdef MPI
-  endif
-
-  call mpi_bcast(f, 3*natom, MPI_DOUBLE_PRECISION, 0, commsander, ierr)
-#endif /* MPI */
-! If not calling an External library
-else
 
   epolar = 0.d0
 
@@ -539,10 +506,10 @@ else
       call AM_NonBond_eval(natom, x, f, vir, xx, ipairs, evdw, eelt, epolar, &
                            enb14, ee14, diprms, dipiter)
     else if (ipgm == 1) then
-       call pGM_NonBond_eval(natom, x, f, vir, xx, ipairs, &
+       call pGM_NonBond_eval(natom, x, f, vir, xx, nspm, ix(i70), xx(lmass), ipairs, &
                              ntypes, ix(i04), ix(i06), cn1, cn2, & ! R. Luo: amber vdw
                              evdw, eelt, epolar, enb14, ee14, &
-                             diprms, dipiter)
+                             diprms, dipiter, nstep)
     else
       if (induced > 0) then
         call handle_induced(x, natom, ix(i04), ix(i06), xx(l15), cn1, cn2, &
@@ -1031,7 +998,7 @@ else
   end if
   ! End APBS force computations
 #endif /* APBS */
-
+  
   if (sebomd_obj%do_sebomd) then
     ! step 1/2 to save eshf + epcshf + ealign + ecsa forces
     call sebomd_save_forces(1, natom, f, xx(gradsebomd), xx(grad1tmp), &
@@ -1088,6 +1055,18 @@ else
                             xx(grad2tmp))
   end if
 
+  ! External library code: could be cuda, mpi, serial, quantum AI,
+  ! cyborg biochip, we don't know.
+  ! Therefore need to call from a place in the code where forces
+  ! and coordinates are coherent, at least on the master.
+  if (iextpot .gt. 0) then
+      if (igb == 0) then
+         call pme_external(x, f, eextpot)
+      else
+         call gb_external(x, f, eextpot)
+      endif
+  endif
+
   ! Calculate the NMR restraint energy contributions, if requested.
   ! (Even though this is not parallelized, it needs to be run on all
   ! threads, since this code is needed for weight changes as well as
@@ -1127,21 +1106,6 @@ else
 
   ! Built-in X-ray target function and gradient
   xray_e = 0.d0
-  if( xray_active ) then
-#ifdef USE_ISCALE
-     if (first) then
-        ! set coordinates to current bfactors:
-        x(3*natom+1:4*natom) = atom_bfactor(1:natom)
-        first = .false.
-     else
-        ! get current bfactors from the end of the coordinate array:
-        atom_bfactor(1:natom) = x(3*natom+1:4*natom)
-     endif
-     call xray_get_derivative(x,f,xray_e,dB=f(3*natom+1))
-#else
-     call xray_get_derivative(x,f,xray_e)
-#endif
-  endif
 
     ! Calculate the total energy and group the components
 #ifndef LES
@@ -1151,16 +1115,24 @@ else
   endif
 #endif
   pot%constraint = pot%constraint + eshf + epcshf + pot%noe + &
-                   sum(enmr(1:6)) + ealign + ecsa + pot%emap + xray_e + enfe
+                   sum(enmr(1:6)) + ealign + ecsa + pot%emap + enfe
+                   
+  !External potential, treat it as a constraint.  If it catches on we
+  !can make a new separate record.
+  pot%constraint = pot%constraint + eextpot
+  
 #ifdef DSSP
   pot%constraint = pot%constraint + edssp
 #endif
   pot%polar = epolar
+  
+  
+  
   pot%tot   = pot%vdw + pot%elec + pot%gb + pot%pb + pot%bond + pot%angle + &
               pot%dihedral + pot%vdw_14 + pot%elec_14 + pot%hbond + &
               pot%constraint + pot%rism + pot%ct
-  pot%tot = pot%tot + pot%polar + pot%surf + pot%scf + pot%disp
-
+  pot%tot = pot%tot + pot%polar + pot%surf + pot%scf + pot%disp 
+  
   ! ASM
 #ifdef MPI
   pot%tot = pot%tot + string_energy
@@ -1327,7 +1299,7 @@ else
   end if
 
 ! Ending if of External library
-end if
+!end if
 
 #ifdef MPI
   ! Nudged Elastic Band (NEB) is only supported with MPI
