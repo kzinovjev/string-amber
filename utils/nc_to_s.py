@@ -86,7 +86,7 @@ class PathCV:
 
     @staticmethod
     def dist_M(r, M):
-        return r @ M @ r
+        return np.sqrt(r @ M @ r)
 
     @staticmethod
     def map_dihedral(dx):
