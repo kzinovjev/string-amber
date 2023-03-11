@@ -14,7 +14,7 @@ os.environ['OPENBLAS_NUM_THREADS'] = '1'
 
 class CVs:
     CV_TYPE_DICT = {
-        'BOND': lambda xyz: mm.bond_length(xyz)[0] / mm.angstrom,
+        'BOND': lambda xyz: mm.bond_length(xyz)[0],
         'ANGLE': lambda xyz: mm.bend_angle(xyz)[0] / mm.deg,
         'DIHEDRAL': lambda xyz: mm.dihed_angle(xyz)[0] / mm.deg,
         'PPLANE': lambda xyz: CVs.eval_pplane(np.roll(xyz, -3))
