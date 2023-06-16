@@ -231,7 +231,7 @@ contains
         dump_pathCV_def = .false.
         read_pathCV_def = .false.
         grote_hynes = .false.
-        dump_pathCV_def = .false.
+        dump_pathCV_def = .true.
         read_pathCV_def = .false.
         points_per_node = -1
         !------------------------
