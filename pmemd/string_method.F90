@@ -244,7 +244,7 @@ contains
         points_extra = -1
         remove_z_bias = .true.
         reweight_z = .true.
-        dump_pathCV_def = .false.
+        dump_pathCV_def = .true.
         read_pathCV_def = .false.
         points_per_node = -1
         !------------------------
@@ -708,6 +708,7 @@ contains
                 step = 0
                 call average_string(av_step, stop_step) !average of string and parameters
                                                         !is taken over [av_step:stop_step]
+                if (dump_pathCV_def .and. server) call write_pathCV
                 string_move = .false.
                 if (remove_z_bias) K_d = 0._8
                 call assign_dat_file
@@ -1512,7 +1513,6 @@ contains
         !---------------------------------
 
         if (.not. string_move .and. read_pathCV_def) call read_pathCV
-        if (.not. string_move .and. dump_pathCV_def .and. server) call write_pathCV
     
     end subroutine update_path
     !==================================================================
