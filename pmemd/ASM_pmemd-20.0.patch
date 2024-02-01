@@ -1,0 +1,128 @@
+diff -crB -x f90depends ../amber20_src/src/pmemd/src/CMakeLists.txt amber20_src/src/pmemd/src/CMakeLists.txt
+*** ../amber20_src/src/pmemd/src/CMakeLists.txt	2021-09-18 17:49:03.251107640 +0200
+--- amber20_src/src/pmemd/src/CMakeLists.txt	2020-04-28 03:19:54.000000000 +0200
+***************
+*** 25,31 ****
+          dbg_arrays.F90 mcres.F90 ensure_alloc.F90 reservoir.F90 sams.F90 ramd.F90
+          gti.F90 bulk_solvent.F90 xray_fourier.F90 xray_globals.F90 xray_interface.F90
+          xray_real_space.F90 xray_reciprocal_space.F90 xray_utils.F90
+-         CV_module.F90 multiCV_module.F90 splines_utilities.F90 string_utilities.F90 CV_utilities.F90 string_method.F90
+          constants.F90 assert.F90 gti.F90 hybridsolvent_remd.F90)
+  
+  set(PMEMD_C_SOURCES pmemd_clib.c)
+--- 25,30 ----
+Only in ../amber20_src/src/pmemd/src/: CV_module.F90
+Only in ../amber20_src/src/pmemd/src/: CV_utilities.F90
+diff -crB -x f90depends ../amber20_src/src/pmemd/src/Makefile amber20_src/src/pmemd/src/Makefile
+*** ../amber20_src/src/pmemd/src/Makefile	2021-09-18 17:50:00.291083357 +0200
+--- amber20_src/src/pmemd/src/Makefile	2020-04-28 03:19:54.000000000 +0200
+***************
+*** 61,67 ****
+          constante_dat$(OSFX) external$(OSFX) relaxmd$(OSFX) sgld$(OSFX) emap$(OSFX) get_efield_energy$(OSFX) gti$(OSFX) \
+          processor$(OSFX) parallel_processor$(OSFX) pme_fft_midpoint$(OSFX) pme_recip_midpoint$(OSFX) \
+          dihedrals_midpoint$(OSFX) angles_midpoint$(OSFX) bonds_midpoint$(OSFX) dbg_arrays$(OSFX) mcres$(OSFX) \
+- 		CV_module$(OSFX) multiCV_module$(OSFX) splines_utilities$(OSFX) string_utilities$(OSFX) CV_utilities$(OSFX) string_method$(OSFX) \
+          ensure_alloc$(OSFX) reservoir${OSFX} sams${OSFX} ramd${OSFX} runreweight${OSFX} hybridsolvent_remd$(OSFX)
+  
+  NFE_OBJECTS = \
+--- 61,66 ----
+Only in ../amber20_src/src/pmemd/src/: multiCV_module.F90
+diff -crB -x f90depends ../amber20_src/src/pmemd/src/runmd.F90 amber20_src/src/pmemd/src/runmd.F90
+*** ../amber20_src/src/pmemd/src/runmd.F90	2021-09-18 17:54:15.812834207 +0200
+--- amber20_src/src/pmemd/src/runmd.F90	2020-04-28 03:19:54.000000000 +0200
+***************
+*** 116,127 ****
+  #ifdef DBG_ARRAYS
+    use dbg_arrays_mod
+  #endif
+- 
+- ! ASM
+- #ifdef MPI
+-   use string_method_mod, only : string_define, string_defined, string_calc
+- #endif
+- ! END_ASM
+  !---------------------------------------------------------------
+  
+    implicit none
+--- 116,121 ----
+***************
+*** 301,310 ****
+    real(real_kind), allocatable :: r_Fcalc(:), i_Fcalc(:)
+  #endif
+  
+- ! ASM
+-   double precision      :: string_e, string_frc(3,atm_cnt)
+- ! END_ASM
+- 
+  ! Runmd operates in kcal/mol units for energy, amu for masses,
+  ! and angstoms for distances.  To convert the input time parameters
+  ! from picoseconds to internal units, multiply by 20.455
+--- 295,300 ----
+***************
+*** 559,570 ****
+  #   include "Plumed_init.inc"
+    endif
+  
+- ! ASM
+- #ifdef MPI
+-   call string_define(crd)
+- #endif
+- ! END_ASM
+- 
+  ! Make a first dynamics step:
+  
+    irespa = 1    ! PME respa step counter.
+--- 549,554 ----
+***************
+*** 767,788 ****
+  #endif
+      end if
+  
+- ! ASM
+- #ifdef MPI
+-     if (string_defined) then
+- #ifdef CUDA
+-       call gpu_download_crd(crd)
+- #endif
+-       call string_calc(crd, string_frc, string_e)
+- #ifdef CUDA
+-       call gpu_upload_frc_add(string_frc)
+- #else
+-       frc = frc + string_frc
+- #endif
+-     end if
+- #endif
+- ! END_ASM
+- 
+      irespa = 1
+  
+      ! The coordinates will not be changed between here and the next
+--- 751,756 ----
+***************
+*** 1802,1823 ****
+  #endif
+        end if
+  
+- ! ASM
+- #ifdef MPI
+-     if (string_defined) then
+- #ifdef CUDA
+-       call gpu_download_crd(crd)
+- #endif
+-       call string_calc(crd, string_frc, string_e)
+- #ifdef CUDA
+-       call gpu_upload_frc_add(string_frc)
+- #else
+-       frc = frc + string_frc
+- #endif
+-     end if
+- #endif
+- ! END_ASM
+- 
+        ! Pressure coupling:
+  
+        if (ntp .gt. 0) then
+--- 1770,1775 ----
+Only in ../amber20_src/src/pmemd/src/: splines_utilities.F90
+Only in ../amber20_src/src/pmemd/src/: string_method.F90
+Only in ../amber20_src/src/pmemd/src/: string_utilities.F90
