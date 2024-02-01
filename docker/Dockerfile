@@ -12,8 +12,8 @@ RUN apt-get update; \
         ca-certificates=20211016ubuntu0.22.04.1 git=1:2.34.1-1ubuntu1.5
 
 WORKDIR /usr/bin
-COPY AmberTools22.tar.bz2 .
-RUN tar xjvf AmberTools22.tar.bz2 && rm AmberTools22.tar.bz2
+COPY AmberTools23.tar.bz2 .
+RUN tar xjvf AmberTools23.tar.bz2 && rm AmberTools23.tar.bz2
 
 WORKDIR amber22_src
 RUN git clone https://github.com/kzinovjev/string-amber

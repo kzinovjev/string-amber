@@ -10,15 +10,15 @@
 #  http://ambermd.org/pmwiki/pmwiki.php/Main/CMake-Common-Options
 
 #  (Note that you can change the value of CMAKE_INSTALL_PREFIX from what
-#  is suggested below, but it cannot coincide with the amber20_src
+#  is suggested below, but it cannot coincide with the amber22_src
 #  folder.)
 
 AMBER_PREFIX=$(dirname $(dirname `pwd`))
 
-cmake $AMBER_PREFIX/amber20_src \
-  -DCMAKE_INSTALL_PREFIX=$AMBER_PREFIX/amber20 \
+cmake $AMBER_PREFIX/amber22_src \
+  -DCMAKE_INSTALL_PREFIX=$AMBER_PREFIX/amber22 \
   -DCOMPILER=GNU  -DBUILD_GUI=FALSE \
-  -DMPI=TRUE -DCUDA=FALSE -DINSTALL_TESTS=TRUE \
+  -DMPI=TRUE -DCUDA=FALSE -DINSTALL_TESTS=FALSE \
   -DDOWNLOAD_MINICONDA=TRUE -DMINICONDA_USE_PY3=TRUE \
   2>&1 | tee  cmake.log
 
