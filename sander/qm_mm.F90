@@ -73,6 +73,9 @@ subroutine qm_mm(coords, natom, scaled_mm_charges, f, escf, periodic, &
 #ifdef MPI
   use string_method, only : string_defined
 #endif
+#ifdef CEW
+  use cewmod, only: use_cew
+#endif
 
   implicit none
 
@@ -461,7 +464,11 @@ subroutine qm_mm(coords, natom, scaled_mm_charges, f, escf, periodic, &
                                qmmm_struct%qm_coords, &
                                qmmm_struct%iqm_atomic_numbers, &
                                nclatoms, qmmm_struct%qm_xcrd, escf, &
-                               qmmm_struct%dxyzqm, qmmm_struct%dxyzcl)
+#ifdef CEW
+                               qmmm_struct%dxyzqm, qmmm_struct%dxyzcl, use_cew)
+#else
+                               qmmm_struct%dxyzqm, qmmm_struct%dxyzcl, .false.)
+#endif
   else if (qmmm_nml%qmtheory%ISTCPB) then
     call get_tcpb_qmmm_forces(nstep, qmmm_struct%nquant_nlink, &
                                qmmm_struct%qm_coords, &

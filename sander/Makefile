@@ -129,7 +129,7 @@ QMOBJ= \
     qm2_extern_nw_module.o qm2_extern_qc_module.o qm2_extern_mrcc_module.o \
     qm2_extern_quick_module.o qm2_extern_reaxff_puremd_module.o \
     qm2_extern_genmpi_module.o quick_module.o tcpb_module.o \
-    qmmm_adaptive_module.o prn_qmmm_dipole.o
+    qmmm_adaptive_module.o prn_qmmm_dipole.o cewmod.o
 
 ifdef LIOLIBS
 QMOBJ += qm2_extern_lio_module.o
@@ -290,7 +290,7 @@ LESOBJ= memory_module.o stack.o file_io_dat.o \
     qm2_extern_genmpi_module.o quick_module.o tcpb_module.o \
     qmmm_adaptive_module.o abfqmmm_module.o prn_qmmm_dipole.o \
     AmberNetcdf.o bintraj.LES.o binrestart.LES.o getcor.LES.o mdfil.LES.o mdwrit.LES.o \
-    lmod.LES.o trajene.o ew_box.LES.o minrit.LES.o set.LES.o qm_mm.LES.o amd.o scaledMD.o \
+    lmod.LES.o trajene.o ew_box.LES.o minrit.LES.o set.LES.o amd.o scaledMD.o \
     music_module.o \
     CV_module.o multiCV_module.o splines_utilities.o string_utilities.o CV_utilities.o string_method.o
 
@@ -358,7 +358,7 @@ all_serial_programs: $(SERIALPROGS)
 	$(MAKE) $(BINDIR)/sander.APBS$(SFX)
 
 #---------------------------------------------------------------------------
-$(BINDIR)/sander$(SFX): libsqm $(MMOBJ) $(QMOBJ) \
+$(BINDIR)/sander$(SFX): libsqm libcew $(MMOBJ) $(QMOBJ) \
               $(FULLPIMDOBJ) $(EMIL) $(SEBOMDOBJ) sebomd \
               $(LSCIVROBJ) force.o syslib ../lib/nxtsec.o netlib \
               $(NFE_OBJECTS) $(XRAY_OBJS) libpbsa libquick libtcpb librism $(PLUMED_DEPENDENCIES)
@@ -379,7 +379,7 @@ $(BINDIR)/sander.quick.cuda$(SFX): configured_cuda libsqm $(MMOBJ) $(QMOBJ) \
               $(NFE_OBJECTS) $(XRAY_OBJS) libpbsa libquick libtcpb librism $(PLUMED_DEPENDENCIES)
 	@echo "[SANDER]  FC $@"
 	$(VB)$(FC) $(SANDER_FPPFLAGS) $(FFLAGS) $(AMBERFFLAGS) -o $@  $(MMOBJ) $(QMOBJ) $(SEBOMDOBJ) \
-	      $(FULLPIMDOBJ) $(LSCIVROBJ) force.o -L$(LIBDIR) -lsqm \
+	      $(FULLPIMDOBJ) $(LSCIVROBJ) force.o -L$(LIBDIR) -lsqm -lcew \
 	      $(NFE_OBJECTS) $(XRAY_OBJS) \
 	      -lFpbsa ../lib/nxtsec.o \
 	      $(SEBOMDLIB) $(FBLIBS) \
@@ -388,7 +388,7 @@ $(BINDIR)/sander.quick.cuda$(SFX): configured_cuda libsqm $(MMOBJ) $(QMOBJ) \
 	      $(LDFLAGS) $(AMBERLDFLAGS)  $(LOCALFLAGS)  $(LIOLIBS) $(PLUMED_LOAD)
 
 #---------------------------------------------------------------------------
-$(BINDIR)/sander.MPI$(SFX): configured_parallel libsqm $(MMOBJ) $(QMOBJ) \
+$(BINDIR)/sander.MPI$(SFX): configured_parallel libsqm libcew $(MMOBJ) $(QMOBJ) \
               $(FULLPIMDOBJ) $(EMIL) $(LSCIVROBJ) $(EVBOBJ) force.o \
               $(SEBOMDOBJ) sebomd $(XRAY_OBJS) \
               syslib ../lib/nxtsec.o netlib libpbsa libquick libtcpb librism_mpi $(NFE_OBJECTS) \
@@ -396,7 +396,7 @@ $(BINDIR)/sander.MPI$(SFX): configured_parallel libsqm $(MMOBJ) $(QMOBJ) \
 	@echo "[SANDER]  FC $@"
 	$(VB)$(FC) $(SANDER_FPPFLAGS) $(FFLAGS) $(AMBERFFLAGS) -o $@  $(MMOBJ) $(QMOBJ) $(SEBOMDOBJ) \
               $(FULLPIMDOBJ) $(LSCIVROBJ) $(EVBOBJ) force.o \
-	      -L$(LIBDIR) -lsqm -lFpbsa \
+	      -L$(LIBDIR) -lsqm -lcew_mpi -lFpbsa \
 	      $(SEBOMDLIB) $(FBLIBS) $(XRAY_OBJS) \
 	      ../lib/nxtsec.o ../lib/sys.a $(NFE_OBJECTS) $(NETCDFLIBF) \
 	      $(FLIBS_RISMSANDER) $(FFTW3) $(SANDER_FLIBSF) $(EMILLIB) \
@@ -418,14 +418,14 @@ $(BINDIR)/sander.quick.cuda.MPI$(SFX): configured_cuda configured_parallel libsq
 	      $(LDFLAGS) $(AMBERLDFLAGS)  $(LIOLIBS) $(PLUMED_LOAD)
 
 #---------------------------------------------------------------------------
-$(BINDIR)/sander.PUPIL$(SFX): configured_serial libsqm $(PUPILOBJ) $(QMOBJ) \
+$(BINDIR)/sander.PUPIL$(SFX): configured_serial libsqm libcew $(PUPILOBJ) $(QMOBJ) \
               $(FULLPIMDOBJ) $(EMIL) $(LSCIVROBJ) syslib $(XRAY_OBJS) \
               $(SEBOMDOBJ) sebomd \
               ../lib/nxtsec.o netlib libpbsa libquick libtcpb librism $(NFE_OBJECTS) \
               $(PLUMED_DEPENDENCIES)
 	@echo "[SANDER]  FC $@"
 	$(VB)$(FC) $(SANDER_FPPFLAGS) $(FFLAGS) $(AMBERFFLAGS) -o $@ $(PUPILOBJ) $(QMOBJ) $(SEBOMDOBJ) $(FULLPIMDOBJ) \
-		$(LSCIVROBJ) -L$(LIBDIR) -lsqm -lFpbsa \
+		$(LSCIVROBJ) -L$(LIBDIR) -lsqm -lcew -lFpbsa \
 	        $(SEBOMDLIB) $(FBLIBS) $(XRAY_OBJS) \
 		../lib/nxtsec.o $(EMILLIB) ../lib/sys.a $(NFE_OBJECTS) $(NETCDFLIBF) \
 	    	$(FLIBS_RISMSANDER) $(FFTW3) $(SANDER_FLIBSF) \
@@ -433,7 +433,7 @@ $(BINDIR)/sander.PUPIL$(SFX): configured_serial libsqm $(PUPILOBJ) $(QMOBJ) \
 
 
 #---------------------------------------------------------------------------
-$(BINDIR)/sander.LES$(SFX): libsqm $(LESOBJ) $(PARTPIMDOBJ) \
+$(BINDIR)/sander.LES$(SFX): libsqm libcew $(LESOBJ) $(PARTPIMDOBJ) \
               syslib ../lib/nxtsec.o netlib \
               $(LSCIVROBJ) $(NFE_OBJECTS) $(XRAY_OBJS) \
               libpbsa libquick libtcpb librism $(EMIL) sebomd $(PLUMED_DEPENDENCIES)
@@ -444,7 +444,6 @@ $(BINDIR)/sander.LES$(SFX): libsqm $(LESOBJ) $(PARTPIMDOBJ) \
 		../lib/nxtsec.o ../lib/sys.a $(NFE_OBJECTS) $(NETCDFLIBF) \
 	      	$(FLIBS_RISMSANDER) $(FFTW3) $(SANDER_FLIBSF) $(EMILLIB) \
 		$(LDFLAGS) $(AMBERLDFLAGS)  $(LIOLIBS) $(PLUMED_LOAD)
-
 
 #---------------------------------------------------------------------------
 $(BINDIR)/sander.LES.quick.cuda$(SFX): libsqm $(LESOBJ) $(PARTPIMDOBJ) \
@@ -453,21 +452,21 @@ $(BINDIR)/sander.LES.quick.cuda$(SFX): libsqm $(LESOBJ) $(PARTPIMDOBJ) \
               libpbsa libquick libtcpb librism $(EMIL) sebomd $(PLUMED_DEPENDENCIES)
 	@echo "[SANDER]  FC $@"
 	$(VB)$(FC) $(SANDER_FPPFLAGS) $(FFLAGS) $(AMBERFFLAGS) -o $@ $(LESOBJ) $(PARTPIMDOBJ) $(LSCIVROBJ) \
-		$(XRAY_OBJS) -L$(LIBDIR) -lsqm -lFpbsa \
+		$(XRAY_OBJS) -L$(LIBDIR) -lsqm -lcew -lFpbsa \
 	        $(SEBOMDLIB) $(FBLIBS) \
 		../lib/nxtsec.o ../lib/sys.a $(NFE_OBJECTS) $(NETCDFLIBF) \
 	      	$(FLIBS_RISMSANDER) $(FFTW3) $(SANDER_FLIBSF) $(EMILLIB) \
 		$(LDFLAGS) $(AMBERLDFLAGS)  $(LIOLIBS) $(PLUMED_LOAD)
 
 #---------------------------------------------------------------------------
-$(BINDIR)/sander.LES.MPI$(SFX): configured_parallel libsqm $(LESOBJ) $(EVBPIMD) \
+$(BINDIR)/sander.LES.MPI$(SFX): configured_parallel libsqm libcew $(LESOBJ) $(EVBPIMD) \
               $(PARTPIMDOBJ) syslib ../lib/nxtsec.o \
               netlib libpbsa libquick libtcpb librism_mpi $(EMIL) $(XRAY_OBJS) \
               $(LSCIVROBJ) $(NFE_OBJECTS) sebomd $(PLUMED_DEPENDENCIES)
 	@echo "[SANDER]  FC $@"
 	$(VB)$(FC) $(SANDER_FPPFLAGS) $(FFLAGS) $(AMBERFFLAGS) -o $@ $(LESOBJ) $(EVBPIMD) \
               $(PARTPIMDOBJ) $(LSCIVROBJ) $(XRAY_OBJS) \
-              -L$(LIBDIR) -lsqm -lFpbsa $(SEBOMDLIB) $(FBLIBS) \
+              -L$(LIBDIR) -lsqm -lcew_mpi -lFpbsa $(SEBOMDLIB) $(FBLIBS) \
               ../lib/nxtsec.o ../lib/sys.a $(NFE_OBJECTS) $(NETCDFLIBF) \
               $(FLIBS_RISMSANDER) $(FFTW3) $(SANDER_FLIBSF) $(EMILLIB) \
               $(LDFLAGS) $(AMBERLDFLAGS) $(LIOLIBS) $(PLUMED_LOAD)
@@ -486,7 +485,7 @@ $(BINDIR)/sander.LES.quick.cuda.MPI$(SFX): configured_cuda configured_parallel l
              $(LDFLAGS) $(AMBERLDFLAGS) $(LIOLIBS) $(PLUMED_LOAD)
 
 #---------------------------------------------------------------------------
-$(BINDIR)/sander.APBS$(SFX): configured_serial libsqm $(APBSOBJ) $(QMOBJ) \
+$(BINDIR)/sander.APBS$(SFX): configured_serial libsqm libcew $(APBSOBJ) $(QMOBJ) \
               $(LSCIVROBJ) $(FULLPIMDOBJ) $(NFE_OBJECTS) \
               force.APBS.o syslib libquick libtcpb librism $(EMIL) \
               $(SEBOMDOBJ) sebomd $(XRAY_OBJS) \
@@ -495,7 +494,7 @@ $(BINDIR)/sander.APBS$(SFX): configured_serial libsqm $(APBSOBJ) $(QMOBJ) \
 	$(VB)$(FC) $(SANDER_FPPFLAGS) $(FFLAGS) $(AMBERFFLAGS) -o $@  $(APBSOBJ) $(QMOBJ) $(SEBOMDOBJ) \
               $(FULLPIMDOBJ) $(LSCIVROBJ) force.APBS.o \
               -L$(APBS_LIBDIR) $(APBS_LIBS) \
-              -L$(LIBDIR) -lsqm -lFpbsa $(EMILLIB) \
+              -L$(LIBDIR) -lsqm -lcew -lFpbsa $(EMILLIB) \
 	        $(SEBOMDLIB) $(FBLIBS) $(XRAY_OBJS) \
               ../lib/nxtsec.o ../lib/sys.a $(NFE_OBJECTS) $(NETCDFLIBF) \
 	      $(FLIBS_RISMSANDER) $(FFTW3) $(SANDER_FLIBSF) \
@@ -517,7 +516,7 @@ $(LIBDIR)/libxray.a: $(XRAY_OBJS)
 	$(AR) $@ $(XRAY_OBJS)
 	$(RANLIB) $@
 
-$(LIBDIR)/libsander$(SHARED_SUFFIX): libsqm $(APIOBJ) \
+$(LIBDIR)/libsander$(SHARED_SUFFIX): libsqm libcew $(APIOBJ) \
               $(QMAPIOBJ) $(FULLPIMDOBJ) $(EMIL) \
               $(SEBOMDOBJ) sebomd $(INCDIR)/sander_api.mod \
               $(LSCIVROBJ) force.o syslib $(PLUMED_DEPENDENCIES) \
@@ -526,7 +525,7 @@ $(LIBDIR)/libsander$(SHARED_SUFFIX): libsqm $(APIOBJ) \
 	@echo "[SANDER]  FC $@"
 	$(VB)$(FC) $(MAKE_SHARED) $(SANDER_FPPFLAGS) $(FFLAGS) $(AMBERFFLAGS) -o $@  $(APIOBJ) \
 		  $(QMAPIOBJ) $(SEBOMDOBJ) $(FULLPIMDOBJ) $(LSCIVROBJ) force.o \
-		  -L$(LIBDIR) -lsqm \
+		  -L$(LIBDIR) -lsqm -lcew \
 	      $(NFE_OBJECTS) $(XRAY_OBJS) \
 	      -lFpbsa ../lib/nxtsec.o $(EMILLIB) \
 	      $(SEBOMDLIB) $(FBLIBS) \
@@ -534,7 +533,7 @@ $(LIBDIR)/libsander$(SHARED_SUFFIX): libsqm $(APIOBJ) \
 	      $(FLIBS_RISMSANDER) fftw3_dummy.o $(SANDER_FLIBSF) \
 	      $(LIOLIBS) $(PLUMED_LOAD)
 
-$(LIBDIR)/libsanderles$(SHARED_SUFFIX): libsqm $(LESAPIOBJ) \
+$(LIBDIR)/libsanderles$(SHARED_SUFFIX): libsqm libcew $(LESAPIOBJ) \
 		$(PARTPIMDOBJ) $(QMAPIOBJ) syslib \
 		../lib/nxtsec.o netlib $(INCDIR)/sanderles_api.mod \
 		$(LSCIVROBJ) $(NFE_OBJECTS) $(XRAY_OBJS) \
@@ -542,7 +541,7 @@ $(LIBDIR)/libsanderles$(SHARED_SUFFIX): libsqm $(LESAPIOBJ) \
 	@echo "[SANDER]  FC $@"
 	$(VB)$(FC) $(MAKE_SHARED) $(SANDER_FPPFLAGS) $(FFLAGS) $(AMBERFFLAGS) \
        -o $@ $(LESAPIOBJ) $(QMAPIOBJ) $(PARTPIMDOBJ) $(LSCIVROBJ) \
-		$(XRAY_OBJS) -L$(LIBDIR) -lsqm -lFpbsa $(EMILLIB) \
+		$(XRAY_OBJS) -L$(LIBDIR) -lsqm -lcew -lFpbsa $(EMILLIB) \
 	        $(SEBOMDLIB) $(FBLIBS) $(PLUMED_LOAD) \
 		../lib/nxtsec.o ../lib/sys.a $(NFE_OBJECTS) $(NETCDFLIBF) \
 	      	$(FLIBS_RISMSANDER) fftw3_dummy.o $(SANDER_FLIBSF) $(LIOLIBS)
@@ -618,6 +617,10 @@ libtcpb:
 	if [ "$(TCPB)" = 'yes' ]; then \
 		cd ../tcpb-cpp && $(MAKE) install ; \
 	fi
+libcew:
+	cd ../cew && $(MAKE) install
+
+
 
 librism librism_mpi:
 	if [ -n "$(RISMSANDER)" ]; then \

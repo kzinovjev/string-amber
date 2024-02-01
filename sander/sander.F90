@@ -10,6 +10,7 @@
 !------------------------------------------------------------------------------
 subroutine sander()
 
+  use ipimod, only : init_ipi, loop_ipi
   use constants, only : INV_AMBER_ELECTROSTATIC
   use lmod_driver
   use trace
@@ -121,7 +122,7 @@ subroutine sander()
 
   use pimd_vars, only: ipimd
   use neb_vars, only: ineb
-  use trajenemod, only: trajene
+  use trajenemod, only: trajene, trajmd
 
   ! CHARMM support
   use charmm_mod, only : charmm_active, charmm_deallocate_arrays, &
@@ -162,6 +163,12 @@ subroutine sander()
   use string_method, only : string_define, string_defined
 #endif
 
+#ifndef LES
+#ifdef CEW
+  use cewmod, only : use_cew
+#endif
+#endif
+  
   implicit none
 
   logical belly, erstop
@@ -349,7 +356,7 @@ subroutine sander()
   abfqmmmmasterdoloop: &
   do while ((abfqmmm_param%qmstep <= abfqmmm_param%maxqmstep) .or. &
             (abfqmmm_param%maxqmstep == 0 .and. abfqmmm_param%system == 2))
-    masterwork: if (master) then
+  masterwork: if (master) then
       if (abfqmmm_param%abfqmmm == 0) then
 
         ! First, initial reads to determine memory sizes
@@ -473,7 +480,8 @@ subroutine sander()
                                         abfqmmm_param%isqm, &
                                         abfqmmm_param%abfcharge, .true.)
           endif
-        endif
+         endif
+
       endif
 
       if (abfqmmm_param%qmstep == 1 .and. abfqmmm_param%system == 1) then
@@ -759,7 +767,7 @@ subroutine sander()
       call timer_stop(TIME_FASTWT)
       call getwds(ih(m04), nres, ix(i02), ih(m02), nbonh, nbona, 0, ix(iibh), &
                   ix(ijbh), iwtnm, iowtnm, ihwtnm, jfastw, ix(iicbh), req, &
-                  x(lwinv), rbtarg, ibelly, ix(ibellygp), 6)
+                  x(lwinv), rbtarg, ibelly, ix(ibellygp), 6, imin, ntmin)
 
       ! Assign link atoms between quantum mechanical and molecular mechanical
       ! atoms if quantum atoms are present.  After assigning the link atoms,
@@ -1233,7 +1241,7 @@ subroutine sander()
       end if
     end if
     ! End of QM/MM MPI setup
-
+    
     ! All nodes are calling this. amrset(ig) has already been called
     ! by the master node (twice if initial velocities are set, ntx <= 3).
     ! Replica Exchange MD now requires need to call amrset on all child
@@ -1293,7 +1301,7 @@ subroutine sander()
     ! and is otherwise off.  When it is on the master and the other
     ! processes follow substantially different code paths, and in that
     ! case collective MPI operations must not be used
-    if (imin .ne. 0) then
+    if (imin .ne. 0 .and. imin .ne. 6 .and. imin .ne. 7) then
       mpi_orig = .true.
       notdone = 1
     else
@@ -1458,6 +1466,24 @@ subroutine sander()
     end if
 #endif
 
+#ifndef LES
+    ! All nodes call this (serial and MPI)
+    ! so we don't need to broadcast use_cew
+    if ( ( qmmm_nml%ifqnt .and. &
+         & qmmm_nml%qm_ewald == 1 .and. ntb > 0 ) .and. &
+         & qmmm_nml%qmtheory%ISQUICK ) then
+#ifdef CEW
+       use_cew = .true.
+#endif
+       if ( qmmm_nml%qm_pme ) then
+          if (master) then
+             write(6,*)"ERROR: qm_pme must be false in the &qmmm namelist", &
+                  & " when using the ab initio composite Ewald method"
+          end if
+       end if
+    end if
+#endif
+         
     ! Allocate memory for crg relocation
     if (ifcr /= 0) then
       call cr_allocate( master, natom )
@@ -1530,7 +1556,7 @@ subroutine sander()
 
     ! Prepare for SGLD simulation
     if (isgld > 0) then
-      call psgld(natom,ix(i08), ix(i10), x(lmass),x(lcrd),x(lvel), rem)
+      call psgld(natom,ix,ix(i08), ix(i10), x(lmass),x(lcrd),x(lvel), rem)
     end if
 
     ! Prepare for EMAP constraints
@@ -1782,7 +1808,42 @@ subroutine sander()
         if (.not. ok) then
           write (6,*) 'error in trajene()'
           call mexit(6, 1)
-        end if
+       end if
+
+    case (6)
+
+       ! Modified for reading trajectories (trajene option)
+       if ( master ) then
+          write (6,*) "POST-PROCESSING OF TRAJECTORY ENERGIES"
+       end if
+       if ( irest > 0 ) then
+          if ( master ) then
+             write(6,*)"Trajectory analysis with imin=6 requires irest=0"
+          end if
+          call mexit(6, 1)
+       end if
+        
+       ! Read trajectories and calculate energies for each frame
+       call trajmd(x, ix, ih, ipairs, ok, qsetup)
+       if (.not. ok) then
+          if ( master ) then
+             write (6,*) 'error in trajmd()'
+          end if
+          call mexit(6, 1)
+       end if
+
+    case (7)
+       
+       if ( master ) then
+          write(6,*) "Entering I-PI interface"
+          call init_ipi()
+       end if
+       
+       do while(.true.)
+          call loop_ipi(ipairs)
+       end do
+
+       
       case default
 
         ! Invalid imin: input validation should be transferred to mdread.f

@@ -33,7 +33,7 @@ set(SANDER_COMMON_SOURCE resamplekin.F90 boost-gamma-distribution.cpp les.F90 st
     nfe-smd-hooks.F90 nfe-umbrella.F90 nfe-utils.F90 nfe-value.F90 mt19937.F90
     pol_gauss.F90 quench.F90 external.F90 relaxmd.F90 music_module.F90 constante.F90
     CV_module.F90 multiCV_module.F90 splines_utilities.F90 string_utilities.F90 CV_utilities.F90 string_method.F90
-    rattle.F90 md_scheme.F90)
+    rattle.F90 md_scheme.F90 cewmod.F90)
 
 set(EMIL_SOURCE emil.F90 mdin_emil_dat.F90)
 
@@ -89,7 +89,8 @@ set(APBS_SOURCE nose_hoover_init.F90
     constantph.F90 prn_dipoles.F90  iwrap2.F90 emap.F90
     binrestart.F90
     spatial_recip.F90 spatial_fft.F90  mbar.F90 linear_response.F90 xref.F90 dssp.F90
-    crg_reloc.F90 sander_lib.F90 amd.F90 scaledMD.F90 barostats.F90)
+    crg_reloc.F90 sander_lib.F90 amd.F90 scaledMD.F90 barostats.F90
+    fsockets_pure.F90 ipimod.F90)
 
 set(QM_SOURCE qm_mm.F90 qm_ewald.F90 qmmm_vsolv.F90
     qm2_extern_util_module.F90 qm2_extern_module.F90 qm2_extern_adf_module.F90 qm2_read_adf_results.c KFReader.c
@@ -122,7 +123,8 @@ set(API_SOURCE  nose_hoover_init.F90
     matinv.F90 assert.F90 erfcfun.F90 sinr_t.F90
     constantph.F90 prn_dipoles.F90  iwrap2.F90 emap.F90 binrestart.F90
     spatial_recip.F90 spatial_fft.F90  mbar.F90 linear_response.F90 xref.F90 dssp.F90
-    crg_reloc.F90 amd.F90 scaledMD.F90 barostats.F90 interface.F90  qm_mm.F90 prmtop_type.F90)
+    crg_reloc.F90 amd.F90 scaledMD.F90 barostats.F90 interface.F90  qm_mm.F90 prmtop_type.F90
+    fsockets_pure.F90 ipimod.F90)
 
 set(LES_API_SOURCE egb.F90 nose_hoover_init_LES.F90
     remd.F90 relax_mat.F90 nmr.F90 multitmd.F90
@@ -143,7 +145,8 @@ set(LES_API_SOURCE egb.F90 nose_hoover_init_LES.F90
     crg_reloc.F90 barostats.F90 prmtop_type.F90
     binrestart.F90 getcor.F90 mdfil.F90 mdwrit.F90
     lmod.F90 trajene.F90 ew_box.F90 minrit.F90 set.F90 qm_mm.F90
-    amd.F90 scaledMD.F90 interface.F90)
+    amd.F90 scaledMD.F90 interface.F90
+    fsockets_pure.F90 ipimod.F90)
 
 
 #main source for sander.PUPIL
@@ -165,7 +168,8 @@ set(PUPIL_SOURCE nose_hoover_init.F90
 	constantph.F90 prn_dipoles.F90  iwrap2.F90 emap.F90 binrestart.F90
 	spatial_recip.F90 spatial_fft.F90  mbar.F90 linear_response.F90 xref.F90
 	putvalues.F90 fixport.F90  dssp.F90 crg_reloc.F90 amd.F90 scaledMD.F90
-	barostats.F90)
+	barostats.F90
+	fsockets_pure.F90 ipimod.F90)
 
 set(LES_SOURCE nose_hoover_init_LES.F90
     remd.F90 egb.F90
@@ -192,7 +196,8 @@ set(LES_SOURCE nose_hoover_init_LES.F90
     qm2_extern_qc_module.F90 qm2_extern_reaxff_puremd_module.F90
     qm2_extern_quick_module.F90 qm2_extern_genmpi_module.F90 qmmm_adaptive_module.F90
     prn_qmmm_dipole.F90 binrestart.F90 getcor.F90 mdfil.F90 mdwrit.F90
-    lmod.F90 trajene.F90 ew_box.F90 minrit.F90 set.F90 qm_mm.F90 amd.F90 scaledMD.F90 quick_module.F90 tcpb_module.F90)
+    lmod.F90 trajene.F90 ew_box.F90 minrit.F90 set.F90 qm_mm.F90 amd.F90 scaledMD.F90 quick_module.F90 tcpb_module.F90
+    fsockets_pure.F90 ipimod.F90)
 
 #mm code and miscellaneous files
 set(MM_SOURCE  force.F90 nose_hoover_init.F90
@@ -212,7 +217,8 @@ set(MM_SOURCE  force.F90 nose_hoover_init.F90
     matinv.F90 assert.F90 erfcfun.F90 sinr_t.F90
     constantph.F90 prn_dipoles.F90  iwrap2.F90 emap.F90 binrestart.F90
     spatial_recip.F90 spatial_fft.F90  mbar.F90 linear_response.F90 xref.F90 dssp.F90
-    crg_reloc.F90 amd.F90 scaledMD.F90 barostats.F90)
+    crg_reloc.F90 amd.F90 scaledMD.F90 barostats.F90
+    fsockets_pure.F90 ipimod.F90)
 
 set(AMBMASK_SOURCE ambmask.F90 findmask.F90 amopen.F90 parms.F90 memory_module.F90 mexit.F90)
 
@@ -251,7 +257,9 @@ elseif(PLUMED_RUNTIME_LINK)
 endif()
 
 if(lio_ENABLED)
-	list(APPEND LES_SOURCE qm2_extern_lio_module.F90)
+    list(APPEND LES_SOURCE qm2_extern_lio_module.F90)
+    list(APPEND QM_SOURCE qm2_extern_lio_module.F90)
+    list(APPEND QM_API_SOURCE qm2_extern_lio_module.F90)
 endif()
 
 # EMIL is always enabled, as far as I know
@@ -261,9 +269,14 @@ if(mbx_ENABLED)
     add_definitions(-DMBX)
 endif()
 
+if(lio_ENABLED)
+    add_definitions(-DLIO)
+endif()
+
 if(BUILD_QUICK)
     # Enable QUICK for everything
     add_definitions(-DQUICK)
+    add_definitions(-DCEW)
 endif()
 
 if(BUILD_TCPB)
@@ -292,11 +305,17 @@ file(MAKE_DIRECTORY ${APBS_MOD_DIR} ${PUPIL_MOD_DIR} ${LES_MOD_DIR} ${API_MOD_DI
 include_directories(${SANDER_COMMON_MOD_DIR} )
 
 # quick mod dirs, or empty if none
+if(HIP)
+    set(QUICK_GPU_TARGET_SUFFIX "hip")
+else()
+    set(QUICK_GPU_TARGET_SUFFIX "cuda")
+endif()
+
 if(BUILD_QUICK)
     set(QUICK_SERIAL_MOD_DIR quick/serial)
     set(QUICK_MPI_MOD_DIR quick/mpi)
-    set(QUICK_CUDA_MOD_DIR quick/cuda)
-    set(QUICK_MPI_CUDA_MOD_DIR quick/mpi_cuda)
+    set(QUICK_CUDA_MOD_DIR quick/${QUICK_GPU_TARGET_SUFFIX})
+    set(QUICK_MPI_CUDA_MOD_DIR quick/mpi_${QUICK_GPU_TARGET_SUFFIX})
 else()
     set(QUICK_SERIAL_MOD_DIR )
     set(QUICK_MPI_MOD_DIR )
@@ -365,10 +384,6 @@ if(BUILD_SANDER_LES)
 	target_compile_definitions(sander.LES PRIVATE LES)
 	config_module_dirs(sander.LES ${LES_MOD_DIR} ${SQMLIB_MOD_DIR} ${RISMLIB_SANDER_INTERFACE_DIR} ${RISMLIB_MOD_DIR} ${AMBER_COMMON_MOD_DIR} ${LIBPBSA_MOD_DIR} ${NETCDF_FORTRAN_MOD_DIR} ${QUICK_SERIAL_MOD_DIR})
 	list(APPEND EXECUTABLES sander.LES)
-
-	if(lio_ENABLED)
-		target_link_libraries(sander.LES lio::lio)
-	endif()
 
 endif()
 # --------------------------------------------------------------------
@@ -449,10 +464,6 @@ if(MPI)
 		make_mpi_version(sander.LES sander.LES.MPI LANGUAGES Fortran SWAP_SOURCES ${RISM_SANDER_IFACE} TO ${RISM_SANDER_IFACE_MPI} ${EVB_PIMD_SOURCE})
 		config_module_dirs(sander.LES.MPI ${SANDER_COMMON_MPI_MOD_DIR}/les ${SQMLIB_MPI_MOD_DIR} ${RISMLIB_SANDER_INTERFACE_MPI_DIR} ${RISMLIB_MPI_MOD_DIR} ${LIBPBSA_MPI_MOD_DIR} ${AMBER_COMMON_MOD_DIR} ${NETCDF_FORTRAN_MOD_DIR} ${QUICK_MPI_MOD_DIR})
 		list(APPEND MPI_EXECUTABLES sander.LES.MPI)
-
-		if(lio_ENABLED)
-			target_link_libraries(sander.LES.MPI lio::lio)
-		endif()
 	endif()
 endif()
 
@@ -474,23 +485,22 @@ if(OPENMP)
 
 endif()
 
-if(CUDA)
+if(CUDA OR HIP)
 
     if(BUILD_QUICK)
         # QUICK CUDA sanders are same as regular sanders but link to CUDA QUICK
-        add_executable(sander.quick.cuda $<TARGET_OBJECTS:sander_base_obj> ${RISM_SANDER_IFACE})
-        list(APPEND CUDA_EXECUTABLES sander.quick.cuda)
+        add_executable(sander.quick.${QUICK_GPU_TARGET_SUFFIX} $<TARGET_OBJECTS:sander_base_obj> ${RISM_SANDER_IFACE})
+        list(APPEND CUDA_EXECUTABLES sander.quick.${QUICK_GPU_TARGET_SUFFIX})
 
         if(MPI)
-            add_executable(sander.quick.cuda.MPI $<TARGET_OBJECTS:sander_base_obj_mpi> ${RISM_SANDER_IFACE_MPI})
-            target_link_libraries(sander.quick.cuda.MPI mpi_fortran)
-            list(APPEND CUDA_MPI_EXECUTABLES sander.quick.cuda.MPI)
+            add_executable(sander.quick.${QUICK_GPU_TARGET_SUFFIX}.MPI $<TARGET_OBJECTS:sander_base_obj_mpi> ${RISM_SANDER_IFACE_MPI})
+            target_link_libraries(sander.quick.${QUICK_GPU_TARGET_SUFFIX}.MPI mpi_fortran)
+            list(APPEND CUDA_MPI_EXECUTABLES sander.quick.${QUICK_GPU_TARGET_SUFFIX}.MPI)
         endif()
 
     endif()
 
 endif()
-
 
 # Things that apply to all executables and/or libraries
 #---------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -516,22 +526,22 @@ endif()
 # QUICK
 if(BUILD_QUICK)
     # Link to appropriate QUICK lib
-    targets_link_libraries(${EXECUTABLES} ${OPENMP_EXECUTABLES} ${LIBRARIES} LIBRARIES libquick)
-    add_dependencies(sander_base_obj libquick)
+    targets_link_libraries(${EXECUTABLES} ${OPENMP_EXECUTABLES} ${LIBRARIES} LIBRARIES libquick libcew)
+    add_dependencies(sander_base_obj libquick libcew)
 
     if(MPI)
-        targets_link_libraries(${MPI_EXECUTABLES} LIBRARIES libquick_mpi)
-        add_dependencies(sander_base_obj_mpi libquick_mpi)
+        targets_link_libraries(${MPI_EXECUTABLES} LIBRARIES libquick_mpi libcew_mpi)
+        add_dependencies(sander_base_obj_mpi libquick_mpi libcew_mpi)
     endif()
 
     if(OPENMP)
-        add_dependencies(sander_base_obj_omp libquick)
+        add_dependencies(sander_base_obj_omp libquick libcew)
     endif()
 
-    if(CUDA)
-        targets_link_libraries(${CUDA_EXECUTABLES} LIBRARIES libquick_cuda)
+    if(CUDA OR HIP)
+        targets_link_libraries(${CUDA_EXECUTABLES} LIBRARIES libquick_${QUICK_GPU_TARGET_SUFFIX} libcew)
         if(MPI)
-            targets_link_libraries(${CUDA_MPI_EXECUTABLES} LIBRARIES  libquick_mpi_cuda)
+            targets_link_libraries(${CUDA_MPI_EXECUTABLES} LIBRARIES  libquick_mpi_${QUICK_GPU_TARGET_SUFFIX} libcew_mpi)
         endif()
     endif()
 endif()
@@ -550,7 +560,7 @@ if(BUILD_TCPB)
         add_dependencies(sander_base_obj_omp libtcpb)
     endif()
 
-    if(CUDA AND BUILD_QUICK)
+    if(CUDA OR HIP AND BUILD_QUICK)
         targets_link_libraries(${CUDA_EXECUTABLES} LIBRARIES libtcpb)
         if(MPI)
             targets_link_libraries(${CUDA_MPI_EXECUTABLES} LIBRARIES libtcpb)
@@ -599,6 +609,10 @@ endif()
 
 if(mbx_ENABLED)
     targets_link_libraries(${EXECUTABLES} ${OPENMP_EXECUTABLES} ${MPI_EXECUTABLES} ${CUDA_MPI_EXECUTABLES} ${CUDA_EXECUTABLES} ${LIBRARIES} LIBRARIES MBX::mbx)
+endif()
+
+if(lio_ENABLED)
+    targets_link_libraries(${EXECUTABLES} ${OPENMP_EXECUTABLES} ${MPI_EXECUTABLES} ${CUDA_MPI_EXECUTABLES} ${CUDA_EXECUTABLES} ${LIBRARIES} LIBRARIES lio::lio)
 endif()
 
 install(TARGETS ${EXECUTABLES} DESTINATION ${BINDIR})

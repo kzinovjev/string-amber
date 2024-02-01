@@ -79,7 +79,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   use constants, only: zero, one
   use relax_mat
   use ew_recip
-  use parms, only: cn1, cn2, cn6, asol, bsol, pk, rk, tk, numbnd, numang, &
+  use parms, only: cn1, cn2, cn6, cn7, cn8, C4Pairwise, asol, bsol, pk, rk, tk, numbnd, numang, & ! New2021
                    nptra, nphb, nimprp, cn3, cn4, cn5 ! for another vdw model
 #ifdef PUPIL_SUPPORT
   use nblist, only: nonbond_list, a, b, c, alpha, beta, gamma, ucell
@@ -111,6 +111,10 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
                              energy_vdw0, cn1_lrt, cn2_lrt, crg_m0, crg_w0, &
                              do_lrt, f_scratch, lrt_solute_sasa
   use cns_xref
+!  use xray_interface_module, only: xray_get_derivative, xray_active
+!#ifdef USE_ISCALE
+!  use xray_globals_module, only: atom_bfactor
+!#endif
 
   ! CHARMM Force Field Support
   use charmm_mod, only: charmm_active, charmm_calc_impropers, &
@@ -136,6 +140,13 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   use string_method, only : string_calc
 #endif
 
+#ifndef LES
+#ifdef CEW
+  use cewmod, only : use_cew, cew_prescf_wrapper, &
+       & cew_postscf_wrapper, cew_call_qmmm
+#endif
+#endif
+  
   implicit none
 
   integer, intent(in) :: nstep
@@ -241,6 +252,20 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   ! ASM
   real*8 :: string_energy
 
+  logical :: do_cew
+
+#ifndef LES
+#ifdef CEW
+  _REAL_ :: cew_ene
+#endif
+#endif
+
+#if defined(CEW) && ! defined(LES)
+  do_cew = use_cew
+#else
+  do_cew = .false.
+#endif
+  
   ect = 0.0
 
   call trace_enter( 'force' )
@@ -386,6 +411,37 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
                 welhb, rwell, tgtrmsd, temp0les, -1, 'WEIT')
   end if
 
+!! If calling an External library
+!if (iextpot .gt. 0) then
+!#ifdef MPI
+!  if (sanderrank .eq. 0) then
+!#endif /* MPI */
+!    if (igb == 0) then
+!      call pme_external(x, f, ener%pot%tot)
+!    else
+!      call gb_external(x, f, ener%pot%tot)
+!    endif
+!    if (nmropt > 0) then
+!      call nmrcal(x, f, ih(m04), ih(m02), ix(i02), xx(lwinv), enmr, devdis, &
+!                  devang, devtor, devplpt, devpln, devgendis, temp0, tautp, &
+!                  cut, xx(lnmr01), ix(inmr02), xx(l95), 31, 6, rk, tk, pk, cn1, &
+!                  cn2, asol, bsol, xx(l15), numbnd, numang, nptra-nimprp, &
+!                  nimprp, nphb, natom, natom, ntypes, nres, rad, wel, radhb, &
+!                  welhb, rwell, tgtrmsd, temp0les, -1, 'CALC')
+!    end if
+!    if (natc > 0 .and. ntr==1) then   ! ntr=1 (positional restraints)
+!      call xconst(natc, entr, ix(icnstrgp), x, f, xx(lcrdr), xx(l60))
+!    end if
+!    ener%pot%constraint = + sum(enmr(1:6)) + entr + enfe
+!    ener%pot%tot = ener%pot%tot + sum(enmr(1:6)) + entr + enfe
+!#ifdef MPI
+!  endif
+!
+!  call mpi_bcast(f, 3*natom, MPI_DOUBLE_PRECISION, 0, commsander, ierr)
+!#endif /* MPI */
+!! If not calling an External library
+!else
+
   epolar = 0.d0
 
   ! EGB: if Generalized Born is in effect (there is a GB solvent,
@@ -443,36 +499,57 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   end if
   ! End EGB
 
+  
+
+  
   ! QM/MM Contributions are now calculated before the NON-Bond info.
   if (qmmm_nml%ifqnt) then
 
-    ! If we are doing periodic boundaries with QM/MM PME then we need to
-    ! do the PME calculation twice. First here to get the potential at
-    ! each QM atom due to the PME and then again after all the QM is done
-    ! to get the MM-MM potential and all of the gradients.
-    if (qmmm_nml%qm_pme) then
-      ! Ewald force will put the potential into the qm_ewald%mmpot array.
-      call timer_start(TIME_EWALD)
-      call ewald_force(x, natom, ix(i04), ix(i06), xx(l15), cn1, cn2, cn6, &
-                       eelt, epolar, f, xx, ix, ipairs, xx(l45), virvsene, &
+     if ( do_cew ) then
+#ifndef LES
+#ifdef CEW
+        call timer_start(TIME_QMMM)
+        escf = 0.d0
+        call cew_prescf_wrapper()
+        call cew_call_qmmm( escf )
+        cew_ene = 0.d0
+        call cew_postscf_wrapper( cew_ene )
+        !write(6,'(a,3f15.4)')"escf,cew,sum",escf,cew_ene,escf+cew_ene
+        escf = escf + cew_ene
+        pot%scf = escf
+        call timer_stop(TIME_QMMM)
+#endif
+#endif
+     else
+
+        ! If we are doing periodic boundaries with QM/MM PME then we need to
+        ! do the PME calculation twice. First here to get the potential at
+        ! each QM atom due to the PME and then again after all the QM is done
+        ! to get the MM-MM potential and all of the gradients.
+        if (qmmm_nml%qm_pme) then
+           ! Ewald force will put the potential into the qm_ewald%mmpot array.
+           call timer_start(TIME_EWALD)
+           call ewald_force(x, natom, ix(i04), ix(i06), xx(l15), cn1, cn2, cn6, cn7, cn8, & ! New2021
+                       C4Pairwise, eelt, epolar, f, xx, ix, ipairs, xx(l45), virvsene, &
                        xx(lpol), &
 #ifdef HAS_10_12
-                       xx(lpol2), .true., cn3, cn4, cn5, asol, bsol)
+                xx(lpol2), .true., cn3, cn4, cn5, asol, bsol)
 #else
-                       xx(lpol2), .true., cn3, cn4, cn5 )
+           xx(lpol2), .true., cn3, cn4, cn5 )
 #endif
-      call timer_stop(TIME_EWALD)
-    endif
+           call timer_stop(TIME_EWALD)
+        endif
 
-    call timer_start(TIME_QMMM)
+        call timer_start(TIME_QMMM)
 #ifndef LES
-    call qm_mm(x, natom, qmmm_struct%scaled_mm_charges, f, escf, periodic, &
-               reff, onereff, intdiel, extdiel, Arad, cut, &
-               qm2_struct%scf_mchg, ntypes, ih(m04), ih(m06), xx(lmass), &
-               ix(i04), nstep)
-    pot%scf = escf
+        call qm_mm(x, natom, qmmm_struct%scaled_mm_charges, f, escf, periodic, &
+             reff, onereff, intdiel, extdiel, Arad, cut, &
+             qm2_struct%scf_mchg, ntypes, ih(m04), ih(m06), xx(lmass), &
+             ix(i04), nstep)
+        pot%scf = escf
 #endif
-    call timer_stop(TIME_QMMM)
+        call timer_stop(TIME_QMMM)
+     end if
   end if
   !END qm/mm contributions, triggered by ifqnt in the qmmm_nml namelist
 
@@ -509,11 +586,11 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
        call pGM_NonBond_eval(natom, x, f, vir, xx, nspm, ix(i70), xx(lmass), ipairs, &
                              ntypes, ix(i04), ix(i06), cn1, cn2, & ! R. Luo: amber vdw
                              evdw, eelt, epolar, enb14, ee14, &
-                             diprms, dipiter, nstep)
+                             diprms, dipiter)
     else
       if (induced > 0) then
         call handle_induced(x, natom, ix(i04), ix(i06), xx(l15), cn1, cn2, &
-                            cn6, eelt, epolar, f, xx, ix, ipairs, xx(lpol), &
+                            cn6, cn7, cn8, C4Pairwise, eelt, epolar, f, xx, ix, ipairs, xx(lpol), & ! New2021
                             xx(lpol2), xx(lpolbnd), xx(l45), virvsene, &
                             ix(i02), ibgwat, nres, aveper, aveind, avetot, &
                             emtot, diprms, dipiter, dipole_temp, &
@@ -531,7 +608,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
 
             ! call with molecule charges set to zero
             call ewald_force(x, natom, ix(i04), ix(i06), crg_m0, cn1, cn2, &
-                             cn6, energy_m0, epolar, f_scratch, xx, ix, &
+                             cn6, cn7, cn8, C4Pairwise, energy_m0, epolar, f_scratch, xx, ix, & ! New2021
                              ipairs, xx(l45), virvsene, xx(lpol), &
 #ifdef HAS_10_12
                              xx(lpol2), .false. , cn3, cn4, cn5, asol, bsol)
@@ -541,7 +618,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
 
             ! call with water charges set to zero
             call ewald_force(x, natom, ix(i04), ix(i06), crg_w0, cn1, cn2, &
-                             cn6, energy_w0, epolar, f_scratch, xx, ix, &
+                             cn6, cn7, cn8, C4Pairwise, energy_w0, epolar, f_scratch, xx, ix, & ! New2021
                              ipairs, xx(l45), virvsene, xx(lpol), &
 #ifdef HAS_10_12
                              xx(lpol2), .false. , cn3, cn4, cn5, asol, bsol)
@@ -551,7 +628,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
             ! call with full charges but no vdw interaction
             ! between solute and solvent
             call ewald_force(x, natom, ix(i04), ix(i06), xx(l15), cn1_lrt, &
-                             cn2_lrt, cn6, eelt, epolar, f_scratch, xx, ix, &
+                             cn2_lrt, cn6, cn7, cn8, C4Pairwise, eelt, epolar, f_scratch, xx, ix, & ! New2021
                              ipairs, xx(l45), virvsene, xx(lpol), &
 #ifdef HAS_10_12
                              xx(lpol2), .false. , cn3, cn4, cn5, asol, bsol)
@@ -565,7 +642,7 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
           ! call normal_ewald force this will overwrite everything
           ! computed above except energy_m0 and energy_w0
           call ewald_force(x, natom, ix(i04), ix(i06), xx(l15), cn1, cn2, &
-                           cn6, eelt, epolar, f, xx, ix, ipairs, xx(l45), &
+                           cn6, cn7, cn8, C4Pairwise, eelt, epolar, f, xx, ix, ipairs, xx(l45), & ! New2021
                            virvsene, xx(lpol), &
 #ifdef HAS_10_12
                            xx(lpol2), .false. , cn3, cn4, cn5, asol, bsol)
@@ -576,15 +653,19 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
 
           ! count call to ltr, maybe calculate Eee and print it
           call ee_linear_response(eelt, master)
-        else ! just call ewald_force normally
+       else ! just call ewald_force normally
+
+          
           call ewald_force(x, natom, ix(i04), ix(i06), xx(l15), cn1, cn2, &
-                           cn6, eelt, epolar, f, xx, ix, ipairs, xx(l45), &
+                           cn6, cn7, cn8, C4Pairwise, eelt, epolar, f, xx, ix, ipairs, xx(l45), & ! New2021
                            virvsene, xx(lpol), &
 #ifdef HAS_10_12
                            xx(lpol2), .false. , cn3, cn4, cn5, asol, bsol)
 #else
                            xx(lpol2), .false. , cn3, cn4, cn5)
 #endif
+
+                           
         end if ! ilrt /= 0
       end if ! induced > 0
     end if ! iamoeba == 1
@@ -1106,6 +1187,21 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
 
   ! Built-in X-ray target function and gradient
   xray_e = 0.d0
+!  if( xray_active ) then
+!#ifdef USE_ISCALE
+!     if (first) then
+!        ! set coordinates to current bfactors:
+!        x(3*natom+1:4*natom) = atom_bfactor(1:natom)
+!        first = .false.
+!     else
+!        ! get current bfactors from the end of the coordinate array:
+!        atom_bfactor(1:natom) = x(3*natom+1:4*natom)
+!     endif
+!     call xray_get_derivative(x,f,xray_e,dB=f(3*natom+1))
+!#else
+!     call xray_get_derivative(x,f,xray_e)
+!#endif
+!  endif
 
     ! Calculate the total energy and group the components
 #ifndef LES
@@ -1120,19 +1216,19 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   !External potential, treat it as a constraint.  If it catches on we
   !can make a new separate record.
   pot%constraint = pot%constraint + eextpot
-  
+                   !sum(enmr(1:6)) + ealign + ecsa + pot%emap + xray_e + enfe
 #ifdef DSSP
   pot%constraint = pot%constraint + edssp
 #endif
   pot%polar = epolar
-  
-  
-  
+
+
+
   pot%tot   = pot%vdw + pot%elec + pot%gb + pot%pb + pot%bond + pot%angle + &
               pot%dihedral + pot%vdw_14 + pot%elec_14 + pot%hbond + &
               pot%constraint + pot%rism + pot%ct
-  pot%tot = pot%tot + pot%polar + pot%surf + pot%scf + pot%disp 
-  
+  pot%tot = pot%tot + pot%polar + pot%surf + pot%scf + pot%disp
+
   ! ASM
 #ifdef MPI
   pot%tot = pot%tot + string_energy
@@ -1364,6 +1460,21 @@ subroutine force(xx, ix, ih, ipairs, x, f, ener, vir, fs, rborn, reff, &
   end if
 #endif
 
+
+!  write(6,*)"sander forces"
+!  write(6,'(a,3es20.10)')"ESCF",pot%scf,pot%elec,pot%tot
+!  do i=1,3
+!      write(6,'(i4,3f10.5)')i,f(1+(i-1)*3),f(2+(i-1)*3),f(3+(i-1)*3)
+!  end do
+!  do i=4128,4130
+!      write(6,'(i4,3f10.5)')i,f(1+(i-1)*3),f(2+(i-1)*3),f(3+(i-1)*3)
+!  end do
+!  do i=4128,4128
+!      write(6,'(i4,a,3F15.5)')i," crd ",x(1+(i-1)*3),x(2+(i-1)*3),x(3+(i-1)*3)
+!      write(6,'(i4,a,3F15.5)')i," crd ",xx(lcrd+(i-1)*3),xx(lcrd+1+(i-1)*3),xx(lcrd+2+(i-1)*3)
+!  end do
+
+  
   ! End force computations and exit
   call timer_stop(TIME_FORCE)
   call trace_exit('force')
