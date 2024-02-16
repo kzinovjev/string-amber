@@ -27,11 +27,11 @@ any problems, check the current version by running
 ```
 Then, if the version is lower than 23.05, run
 ```
-./update_amber --update-to=AmberTools.23.05
+./update_amber --update-to=AmberTools.5
 ```
 and if it's newer, downgrade by running
 ```
-./update_amber --revert-to=AmberTools.23.05
+./update_amber --revert-to=AmberTools.5
 ```
 
 A Dockerfile for AmberTools23+ASM installation in a Docker container can be 
