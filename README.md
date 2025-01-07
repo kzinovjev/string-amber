@@ -1,5 +1,5 @@
-> :warning: The current code is incompatible with AmberTools22 or earlier, 
-> so make sure you use it with the version 23.  
+> :warning: ASM has been included in the official Amber distribution since version 24.
+> Please refer to the Amber manual for usage instructions.
 
 # string-amber
 Adaptive string method implementation in sander (AmberTools 23.05) and pmemd 
